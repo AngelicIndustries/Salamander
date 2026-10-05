@@ -1,5 +1,8 @@
 package com.geckolib.animation.state;
 
+import org.joml.Quaternionf;
+import org.joml.Quaternionfc;
+
 import com.geckolib.cache.model.GeoBone;
 
 /** CPU-side pose values for one named bone. */
@@ -16,6 +19,7 @@ public final class BoneSnapshot {
     private float rotX;
     private float rotY;
     private float rotZ;
+    private final Quaternionf additionalRotation = new Quaternionf();
     private boolean hidden;
     private boolean childrenHidden;
 
@@ -162,6 +166,49 @@ public final class BoneSnapshot {
         return this;
     }
 
+    /** Copies the additional local rotation; callers never receive the mutable pose value. */
+    public Quaternionf getAdditionalRotation(Quaternionf destination) {
+        return destination.set(this.additionalRotation);
+    }
+
+    /**
+     * Sets a normalized rotation applied after bind-plus-pose Euler rotation and before scale.
+     * Components use renderer coordinates, without further axis conversion. Invalid input leaves the pose unchanged.
+     */
+    public BoneSnapshot setAdditionalRotation(float x, float y, float z, float w) {
+        double lengthSquared = (double) x * x + (double) y * y + (double) z * z + (double) w * w;
+        if (!Double.isFinite(lengthSquared) || lengthSquared == 0) {
+            throw new IllegalArgumentException("Additional rotation must be finite and nonzero");
+        }
+        double inverseLength = 1 / Math.sqrt(lengthSquared);
+        this.additionalRotation.set(
+            (float) (x * inverseLength),
+            (float) (y * inverseLength),
+            (float) (z * inverseLength),
+            (float) (w * inverseLength));
+        return this;
+    }
+
+    public BoneSnapshot setAdditionalRotation(Quaternionfc rotation) {
+        return setAdditionalRotation(rotation.x(), rotation.y(), rotation.z(), rotation.w());
+    }
+
+    public BoneSnapshot resetAdditionalRotation() {
+        this.additionalRotation.identity();
+        return this;
+    }
+
+    public boolean hasAdditionalRotation() {
+        return this.additionalRotation.x != 0 || this.additionalRotation.y != 0 || this.additionalRotation.z != 0;
+    }
+
+    /** Additive order is target * source, so source acts first on column vectors. */
+    void applyAdditionalRotation(BoneSnapshot source, boolean additive) {
+        if (additive) this.additionalRotation.mul(source.additionalRotation)
+            .normalize();
+        else this.additionalRotation.set(source.additionalRotation);
+    }
+
     public BoneSnapshot skipRender(boolean shouldSkip) {
         this.hidden = shouldSkip;
 
@@ -177,6 +224,7 @@ public final class BoneSnapshot {
     public BoneSnapshot copy() {
         return new BoneSnapshot(this.boneName, this.bone).setScale(this.scaleX, this.scaleY, this.scaleZ)
             .setRotation(this.rotX, this.rotY, this.rotZ)
+            .setAdditionalRotation(this.additionalRotation)
             .setTranslation(this.translateX, this.translateY, this.translateZ)
             .skipRender(this.hidden)
             .skipChildrenRender(this.childrenHidden);

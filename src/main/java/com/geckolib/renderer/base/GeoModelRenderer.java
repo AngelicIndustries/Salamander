@@ -6,6 +6,7 @@ import java.util.function.Predicate;
 
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
+import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 
@@ -134,6 +135,7 @@ public final class GeoModelRenderer {
         matrix.rotateZ(bone.baseRotZ() + snapshot.getRotZ());
         matrix.rotateY(bone.baseRotY() + snapshot.getRotY());
         matrix.rotateX(bone.baseRotX() + snapshot.getRotX());
+        if (snapshot.hasAdditionalRotation()) matrix.rotate(snapshot.getAdditionalRotation(new Quaternionf()));
         matrix.scale(snapshot.getScaleX(), snapshot.getScaleY(), snapshot.getScaleZ());
     }
 

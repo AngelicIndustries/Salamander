@@ -57,6 +57,7 @@ public final class ModelPose {
             if (target == null) continue;
 
             BoneSnapshot source = entry.getValue();
+            target.applyAdditionalRotation(source, additive);
 
             if (additive) {
                 target.setScale(
