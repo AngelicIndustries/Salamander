@@ -41,6 +41,8 @@ public class EarlyMixinLoader implements IEarlyMixinLoader, IFMLLoadingPlugin {
             mixins.add("minecraft.client.MixinEntityArrowCemInputs");
             mixins.add("minecraft.client.MixinEntitySquidCemInputs");
             mixins.add("minecraft.client.MixinEntitySilverfishCemInputs");
+            mixins.add("minecraft.client.MixinEntityLivingBaseCemHeadRotation");
+            mixins.add("minecraft.client.MixinNetHandlerPlayClientCemHeadRotation");
             mixins.add("minecraft.client.resources.AccessorAbstractResourcePack");
             mixins.add("minecraft.client.renderer.entity.MixinRenderPlayer");
             mixins.add("minecraft.client.renderer.entity.MixinRenderSpiderCem");
