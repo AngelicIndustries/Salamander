@@ -20,7 +20,7 @@ jobs:
   publish-67minecraft:
     needs: release-tags
     if: ${{ vars.SIX_SEVEN_PROJECT_ID != '' }}
-    uses: JackOfNoneTrades/67minecraft-gradle-publish/.github/workflows/publish-67minecraft.yml@1.0.1
+    uses: FentanylSolutions/67minecraft-gradle-publish/.github/workflows/publish-67minecraft.yml@1.0.1
     with:
       gradle-arguments: >-
         --no-configuration-cache --build-cache --info --stacktrace -x test
