@@ -87,16 +87,19 @@ public final class CemResources implements IResourceManagerReloadListener {
         if (!definitions.containsKey(key)) {
             Entry entry = null;
             try {
-                CemModel model = new CemLoader(
+                CemLoader loader = new CemLoader(
                     location -> new InputStreamReader(
                         manager.getResource(location)
                             .getInputStream(),
-                        StandardCharsets.UTF_8)).load(
-                            resource,
-                            binding.pivots,
-                            binding.parents,
-                            binding.textureWidth,
-                            binding.textureHeight);
+                        StandardCharsets.UTF_8));
+                CemModel model = loader
+                    .load(resource, binding.pivots, binding.parents, binding.textureWidth, binding.textureHeight);
+                if (!loader.missingReferences()
+                    .isEmpty())
+                    Salamander.LOG.warn(
+                        "CEM '{}' references missing {}; those parts keep only their own boxes",
+                        resource,
+                        loader.missingReferences());
                 ResourceLocation texture = model.texture == null ? CemRuntime.texture() : model.texture;
                 entry = new Entry(model, texture, emissive(texture));
                 Salamander.LOG.info(

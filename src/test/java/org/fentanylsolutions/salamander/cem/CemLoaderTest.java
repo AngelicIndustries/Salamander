@@ -2,6 +2,7 @@ package org.fentanylsolutions.salamander.cem;
 
 import static org.junit.Assert.*;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.Collections;
@@ -84,10 +85,25 @@ public class CemLoaderTest {
     }
 
     @Test
+    public void missingReferencesKeepTheirOwnBoxes() throws Exception {
+        Map<ResourceLocation, String> files = new HashMap<>();
+        files.put(
+            SOURCE,
+            "{\"models\":[{\"part\":\"head\",\"id\":\"head\",\"boxes\":[{\"textureOffset\":[0,0],\"coordinates\":[-4,0,-4,8,8,8]}],"
+                + "\"submodels\":[{\"id\":\"face\",\"model\":\"face.jpm\"}]}]}");
+        CemLoader loader = loader(files);
+        CemModel model = loader.load(SOURCE, Collections.singletonMap("head", new float[] { 0, 15, -3 }));
+        assertNotNull(model.originalParts.get("head"));
+        assertEquals(Collections.singletonList(CemLoader.path(SOURCE, "face.jpm", ".jpm")), loader.missingReferences());
+
+        files.put(CemLoader.path(SOURCE, "face.jpm", ".jpm"), "{\"boxes\":[");
+        assertThrows(IOException.class, () -> load(files));
+    }
+
+    @Test
     public void detectsMissingCyclicAndUnboundResources() {
         Map<ResourceLocation, String> files = new HashMap<>();
         files.put(SOURCE, "{\"models\":[{\"part\":\"head\",\"model\":\"a.jpm\"}]}");
-        assertThrows(IOException.class, () -> load(files));
         files.put(CemLoader.path(SOURCE, "a.jpm", ".jpm"), "{\"model\":\"a.jpm\"}");
         assertThrows(IOException.class, () -> load(files));
         files.put(SOURCE, "{\"models\":[{\"part\":\"head\",\"animations\":[{\"missing.rx\":\"1\"}]}]}");
@@ -116,10 +132,15 @@ public class CemLoaderTest {
     }
 
     private CemModel load(Map<ResourceLocation, String> files) throws IOException {
+        return loader(files).load(SOURCE, Collections.singletonMap("head", new float[] { 0, 15, -3 }));
+    }
+
+    /** Missing files fail as the game's resource manager fails them. */
+    private CemLoader loader(Map<ResourceLocation, String> files) {
         return new CemLoader(location -> {
             String contents = files.get(location);
-            if (contents == null) throw new IOException("Missing " + location);
+            if (contents == null) throw new FileNotFoundException(location.toString());
             return new StringReader(contents);
-        }).load(SOURCE, Collections.singletonMap("head", new float[] { 0, 15, -3 }));
+        });
     }
 }

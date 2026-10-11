@@ -1,5 +1,6 @@
 package org.fentanylsolutions.salamander.cem.loading;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.Reader;
 import java.util.ArrayDeque;
@@ -32,6 +33,7 @@ public final class CemLoader {
     private final List<CemModel.Node> nodes = new ArrayList<>();
     private final List<CemModel.Animation> animations = new ArrayList<>();
     private final Map<String, CemModel.Node> originals = new LinkedHashMap<>();
+    private final List<ResourceLocation> missing = new ArrayList<>();
 
     public CemLoader(Resources resources) {
         this.resources = resources;
@@ -265,15 +267,36 @@ public final class CemLoader {
                     ".jpm");
                 if (visiting.contains(reference) || visiting.size() >= 64) throw new IOException(
                     source + ": circular/excessive JPM references: " + visiting + " -> " + reference);
-                visiting.addLast(reference);
-                JsonObject external = resolve(read(reference), reference, visiting);
-                visiting.removeLast();
                 result.remove("model");
-                inherit(result, external, false);
+                JsonObject referenced = reference(reference);
+                if (referenced != null) {
+                    visiting.addLast(reference);
+                    JsonObject external = resolve(referenced, reference, visiting);
+                    visiting.removeLast();
+                    inherit(result, external, false);
+                }
             }
             return result;
         } finally {
             --resolutionDepth;
+        }
+    }
+
+    /** The parts' {@code model} references that did not exist, in load order. */
+    public List<ResourceLocation> missingReferences() {
+        return java.util.Collections.unmodifiableList(missing);
+    }
+
+    /**
+     * As in EMF, a part whose referenced model file does not exist keeps only what it declares itself, so a pack can
+     * point at files that add-on packs provide. A file that exists but does not parse still fails the model.
+     */
+    private JsonObject reference(ResourceLocation location) throws IOException {
+        try {
+            return read(location);
+        } catch (FileNotFoundException absent) {
+            if (!missing.contains(location)) missing.add(location);
+            return null;
         }
     }
 
