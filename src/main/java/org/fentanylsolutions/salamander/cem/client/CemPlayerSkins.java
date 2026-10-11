@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 
 import javax.imageio.ImageIO;
 
@@ -14,6 +15,8 @@ import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.client.renderer.texture.ITextureObject;
 import net.minecraft.util.ResourceLocation;
 
+import org.fentanylsolutions.salamander.compat.wawelauth.WawelAuthCompat;
+
 /** Player-pack atlases are separate textures so reloads and native rendering keep their original skin. */
 public final class CemPlayerSkins {
 
@@ -22,17 +25,21 @@ public final class CemPlayerSkins {
 
     private CemPlayerSkins() {}
 
-    public static ResourceLocation texture(ResourceLocation original) {
+    /** A player's own Wawel Auth skin supplies its pixels, unless the pack replaces the texture. */
+    public static ResourceLocation texture(ResourceLocation original, Object subject) {
         if (original == null) return null;
         Minecraft minecraft = Minecraft.getMinecraft();
         ResourceLocation selected = CemResources.INSTANCE.texture(original);
         ITextureObject source = minecraft.getTextureManager()
             .getTexture(selected);
-        BufferedImage image = source instanceof CemSkinTexture ? ((CemSkinTexture) source).salamander$skinImage()
+        WawelAuthCompat.SkinPixels wawel = selected.equals(original) ? WawelAuthCompat.skin(subject, original) : null;
+        BufferedImage image = wawel == null && source instanceof CemSkinTexture
+            ? ((CemSkinTexture) source).salamander$skinImage()
             : null;
+        Object version = wawel != null ? (Object) wawel.revision : image;
         Skin cached = SKINS.get(original);
-        if (cached != null && cached.source == source && cached.image == image) return cached.texture;
-        BufferedImage pixels = image;
+        if (cached != null && cached.source == source && Objects.equals(cached.version, version)) return cached.texture;
+        BufferedImage pixels = wawel != null ? wawel.image() : image;
         if (pixels == null) {
             try (InputStream stream = minecraft.getResourceManager()
                 .getResource(selected)
@@ -55,7 +62,7 @@ public final class CemPlayerSkins {
             org.lwjgl.opengl.GL11.glBindTexture(org.lwjgl.opengl.GL11.GL_TEXTURE_2D, previousTexture);
             CemRuntime.texture(previousResource);
         }
-        SKINS.put(original, new Skin(source, image, texture));
+        SKINS.put(original, new Skin(source, version, texture));
         NATIVE.put(texture, original);
         if (SKINS.size() > 256) {
             java.util.Iterator<Skin> iterator = SKINS.values()
@@ -85,12 +92,13 @@ public final class CemPlayerSkins {
     private static final class Skin {
 
         final ITextureObject source;
-        final BufferedImage image;
+        /** The captured image, compared by identity, or Wawel Auth's skin revision. */
+        final Object version;
         final ResourceLocation texture;
 
-        Skin(ITextureObject source, BufferedImage image, ResourceLocation texture) {
+        Skin(ITextureObject source, Object version, ResourceLocation texture) {
             this.source = source;
-            this.image = image;
+            this.version = version;
             this.texture = texture;
         }
     }

@@ -5,6 +5,7 @@ import net.minecraft.client.model.ModelBiped;
 import net.minecraft.entity.Entity;
 
 import org.fentanylsolutions.salamander.cem.client.CemRuntime;
+import org.fentanylsolutions.salamander.compat.wawelauth.WawelAuthCompat;
 import org.spongepowered.asm.mixin.Mixin;
 
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
@@ -16,8 +17,10 @@ public abstract class MixinModelBipedCemRender {
     @WrapMethod(method = "render(Lnet/minecraft/entity/Entity;FFFFFF)V")
     private void salamander$render(Entity entity, float limb, float speed, float age, float yaw, float pitch,
         float scale, Operation<Void> original) {
-        CemRuntime.Draw previous = CemRuntime.begin((ModelBase) (Object) this, entity, limb, speed, age, yaw, pitch);
+        ModelBase model = (ModelBase) (Object) this;
+        CemRuntime.Draw previous = CemRuntime.begin(model, entity, limb, speed, age, yaw, pitch);
         try {
+            if (CemRuntime.replacesPlayer(model)) WawelAuthCompat.suppressLayers();
             original.call(entity, limb, speed, age, yaw, pitch, scale);
         } finally {
             CemRuntime.end(previous, scale);

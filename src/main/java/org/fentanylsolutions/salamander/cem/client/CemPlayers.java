@@ -10,6 +10,8 @@ import net.minecraft.client.model.ModelBase;
 import net.minecraft.client.model.ModelBiped;
 import net.minecraft.client.model.ModelBox;
 
+import org.fentanylsolutions.salamander.compat.wawelauth.WawelAuthCompat;
+
 import com.google.common.collect.MapMaker;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -45,6 +47,8 @@ public final class CemPlayers {
     }
 
     public static boolean slim(AbstractClientPlayer player, ModelBase model) {
+        Boolean wawel = WawelAuthCompat.slim(player);
+        if (wawel != null) return wawel;
         ModelBiped biped = (ModelBiped) model;
         // A modern renderer can resolve local/provider-specific skins before its model is drawn.
         if (biped.bipedRightArm.textureHeight == biped.bipedRightArm.textureWidth

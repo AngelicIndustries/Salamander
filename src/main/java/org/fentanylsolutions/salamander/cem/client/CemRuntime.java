@@ -78,6 +78,13 @@ public final class CemRuntime {
         return false;
     }
 
+    /** Whether the open draw is a pack model for this player model, which then draws the skin overlays itself. */
+    public static boolean replacesPlayer(ModelBase model) {
+        return draw != null && draw.entry != null
+            && draw.binding.nativeModel == model
+            && CemPlayers.model(draw.object, model);
+    }
+
     public static boolean replaced(String name) {
         if (subject == null || subject.primary == null) return false;
         CemModel.Node node = subject.primary.model.originalParts.get(name);
@@ -491,7 +498,7 @@ public final class CemRuntime {
             this.parts = binding.parts(object);
             this.entry = entry;
             this.texture = entry != null && CemPlayers.model(object, binding.nativeModel)
-                ? CemPlayerSkins.texture(texture)
+                ? CemPlayerSkins.texture(texture, object)
                 : texture;
             this.object = object;
             this.staticPose = staticPose;
