@@ -16,6 +16,7 @@ import net.minecraft.entity.Entity;
 import net.minecraft.util.ResourceLocation;
 
 import org.fentanylsolutions.salamander.cem.model.CemModel;
+import org.fentanylsolutions.salamander.compat.wawelauth.WawelAuthCompat;
 import org.fentanylsolutions.salamander.config.CemConfig;
 
 /** Render-thread scopes keep nested entity, tile, item and multipass draws isolated. */
@@ -78,11 +79,26 @@ public final class CemRuntime {
         return false;
     }
 
-    /** Whether the open draw is a pack model for this player model, which then draws the skin overlays itself. */
-    public static boolean replacesPlayer(ModelBase model) {
-        return draw != null && draw.entry != null
-            && draw.binding.nativeModel == model
-            && CemPlayers.model(draw.object, model);
+    /** The vanilla skin overlay parts of a player model, by CEM name. */
+    private static final String[] OVERLAY_PARTS = { "headwear", "jacket", "left_sleeve", "right_sleeve", "left_pants",
+        "right_pants" };
+
+    /**
+     * The skin overlay parts that the open draw's pack model replaces with its own geometry, when it draws this player
+     * model. Parts the pack leaves alone keep their vanilla overlay.
+     */
+    public static List<String> replacedOverlays(ModelBase model) {
+        if (draw == null || draw.entry == null
+            || draw.binding.nativeModel != model
+            || !CemPlayers.model(draw.object, model)) return Collections.emptyList();
+        List<String> parts = new java.util.ArrayList<>();
+        for (String name : OVERLAY_PARTS) if (replaces(draw.entry, name)) parts.add(name);
+        return parts;
+    }
+
+    private static boolean replaces(CemResources.Entry entry, String name) {
+        CemModel.Node node = entry.model.originalParts.get(name);
+        return node != null && !node.vanillaGeometry;
     }
 
     public static boolean replaced(String name) {
@@ -199,6 +215,8 @@ public final class CemRuntime {
             CemResources.Selection selection = CemResources.INSTANCE
                 .select(CemTargets.candidates(player, model, texture), binding, player);
             if (selection == null) return false;
+            if (replaces(selection.entry, "right_sleeve"))
+                WawelAuthCompat.claimLayers(Collections.singletonList("right_sleeve"));
             hand = new Draw(binding, selection.entry, player, 0, 0, 0, 0, 0, 0, texture, true);
             hand.extras = true;
             draw = hand;

@@ -20,7 +20,7 @@ public abstract class MixinModelBipedCemRender {
         ModelBase model = (ModelBase) (Object) this;
         CemRuntime.Draw previous = CemRuntime.begin(model, entity, limb, speed, age, yaw, pitch);
         try {
-            if (CemRuntime.replacesPlayer(model)) WawelAuthCompat.suppressLayers();
+            WawelAuthCompat.claimLayers(CemRuntime.replacedOverlays(model));
             original.call(entity, limb, speed, age, yaw, pitch, scale);
         } finally {
             CemRuntime.end(previous, scale);

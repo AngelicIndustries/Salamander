@@ -8,7 +8,6 @@ import net.minecraft.entity.player.EntityPlayer;
 
 import org.fentanylsolutions.salamander.cem.client.CemPlayers;
 import org.fentanylsolutions.salamander.cem.client.CemRuntime;
-import org.fentanylsolutions.salamander.compat.wawelauth.WawelAuthCompat;
 import org.fentanylsolutions.salamander.mixins.early.minecraft.client.AccessorMinecraft;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -38,8 +37,7 @@ public abstract class MixinRenderPlayer {
         at = @At(value = "INVOKE", target = "Lnet/minecraft/client/model/ModelRenderer;render(F)V"))
     private void salamander$cemHand(ModelRenderer arm, float scale, Operation<Void> original, EntityPlayer player) {
         CemPlayers.register(modelBipedMain);
-        if (CemRuntime.firstPersonArm(modelBipedMain, player, scale)) WawelAuthCompat.suppressLayers();
-        else original.call(arm, scale);
+        if (!CemRuntime.firstPersonArm(modelBipedMain, player, scale)) original.call(arm, scale);
     }
 
     @WrapOperation(

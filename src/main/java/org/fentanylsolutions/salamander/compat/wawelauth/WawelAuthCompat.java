@@ -1,6 +1,11 @@
 package org.fentanylsolutions.salamander.compat.wawelauth;
 
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
 import net.minecraft.client.entity.AbstractClientPlayer;
@@ -15,6 +20,17 @@ import cpw.mods.fml.common.Loader;
 public final class WawelAuthCompat {
 
     private static final boolean LOADED = Loader.isModLoaded("wawelauth") && WawelAuthApi.compatible();
+    /** CEM part names of the overlay parts, to Wawel Auth's skin part names. */
+    private static final Map<String, String> SKIN_PARTS = new HashMap<>();
+
+    static {
+        SKIN_PARTS.put("headwear", "HAT");
+        SKIN_PARTS.put("jacket", "JACKET");
+        SKIN_PARTS.put("left_sleeve", "LEFT_SLEEVE");
+        SKIN_PARTS.put("right_sleeve", "RIGHT_SLEEVE");
+        SKIN_PARTS.put("left_pants", "LEFT_PANTS");
+        SKIN_PARTS.put("right_pants", "RIGHT_PANTS");
+    }
 
     private WawelAuthCompat() {}
 
@@ -34,11 +50,26 @@ public final class WawelAuthCompat {
     }
 
     /**
-     * Stops Wawel Auth's skin layers in the innermost open draw, the one around the model being replaced. A pack model
-     * draws the player's overlays itself.
+     * Takes over the given overlay parts (CEM names, such as {@code jacket}) in the innermost open layer draw, the one
+     * around the model being replaced. The pack draws those parts itself, handing vanilla-shaped pieces back through
+     * {@link #submit}; Wawel Auth keeps drawing the others on the pack's bones.
      */
-    public static void suppressLayers() {
-        if (LOADED) WawelAuthBridge.suppressLayers();
+    public static void claimLayers(Collection<String> cemParts) {
+        if (!LOADED || cemParts.isEmpty()) return;
+        List<String> parts = new ArrayList<>();
+        for (String cemPart : cemParts) {
+            String part = SKIN_PARTS.get(cemPart);
+            if (part != null) parts.add(part);
+        }
+        WawelAuthBridge.claimLayers(parts);
+    }
+
+    /**
+     * Has Wawel Auth draw a vanilla overlay piece under the current transform, flat or 3D as the viewer chose, if the
+     * open layer draw has its part claimed. False when the caller must draw the box itself.
+     */
+    public static boolean submit(WawelAuthOverlays.Overlay overlay) {
+        return LOADED && WawelAuthBridge.submit(overlay);
     }
 
     /** Skin pixels with a revision that changes whenever they may have. */

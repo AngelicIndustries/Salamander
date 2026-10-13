@@ -11,6 +11,8 @@ import net.minecraft.client.renderer.Tessellator;
 import org.fentanylsolutions.salamander.cem.model.CemBoxMesh;
 import org.fentanylsolutions.salamander.cem.model.CemModel;
 import org.fentanylsolutions.salamander.cem.model.CemSpriteMesh;
+import org.fentanylsolutions.salamander.compat.wawelauth.WawelAuthCompat;
+import org.fentanylsolutions.salamander.compat.wawelauth.WawelAuthOverlays;
 import org.lwjgl.opengl.GL11;
 
 /** Baked box vertices rendered through the vanilla Tessellator, with no Angelica dependency or GPU cache. */
@@ -18,15 +20,27 @@ public final class CemGeometry {
 
     private final CemModel model;
     private final List<List<float[]>> faces = new ArrayList<>();
+    /** Boxes that are vanilla skin overlay pieces, which Wawel Auth may draw in their place. */
+    private final List<List<OverlayBox>> overlays = new ArrayList<>();
 
     public CemGeometry(CemModel model) {
         this.model = model;
         for (CemModel.Node node : model.nodes) {
             List<float[]> part = new ArrayList<>();
-            for (CemModel.Box box : node.boxes)
-                for (float[] face : new CemBoxMesh(box).faces) if (face != null) part.add(face);
+            List<OverlayBox> pieces = new ArrayList<>();
+            for (CemModel.Box box : node.boxes) {
+                WawelAuthOverlays.Overlay overlay = WawelAuthOverlays.match(box);
+                List<float[]> target = part;
+                if (overlay != null) {
+                    OverlayBox piece = new OverlayBox(overlay);
+                    pieces.add(piece);
+                    target = piece.faces;
+                }
+                for (float[] face : new CemBoxMesh(box).faces) if (face != null) target.add(face);
+            }
             for (CemModel.Box sprite : node.sprites) part.addAll(new CemSpriteMesh(sprite).faces);
             faces.add(part);
+            overlays.add(pieces);
         }
     }
 
@@ -82,7 +96,7 @@ public final class CemGeometry {
             if (selected != null) net.minecraft.client.Minecraft.getMinecraft()
                 .getTextureManager()
                 .bindTexture(selected);
-            renderPart(node, pose, vanilla, scale, rotationOrder, selected, eyes);
+            renderPart(node, pose, vanilla, scale, rotationOrder, selected, eyes, model.texture == null && !eyes);
         } finally {
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, previous);
             CemRuntime.texture(previousResource);
@@ -124,8 +138,9 @@ public final class CemGeometry {
         return false;
     }
 
+    /** {@code skin}: the parts above drew with the entity's own texture, so a player's skin when it is a player. */
     private void renderPart(CemModel.Node node, double[] pose, Map<String, ModelRenderer> vanilla, float scale,
-        boolean rotationOrder, net.minecraft.util.ResourceLocation inherited, boolean eyes) {
+        boolean rotationOrder, net.minecraft.util.ResourceLocation inherited, boolean eyes, boolean skin) {
         int offset = node.index * CemModel.STRIDE;
         if (pose[offset + 9] == 0) return;
         net.minecraft.util.ResourceLocation previousResource = CemRuntime.texture();
@@ -140,14 +155,16 @@ public final class CemGeometry {
             if (selected != null) net.minecraft.client.Minecraft.getMinecraft()
                 .getTextureManager()
                 .bindTexture(selected);
+            boolean ownSkin = skin && node.texture == null;
             if (pose[offset + 10] != 0 && (!eyes || selected != null)) {
                 if (!eyes && node.vanillaGeometry
                     && CemBoatChest.part(node.vanillaPart)
                     && !vanilla.containsKey(node.vanillaPart)) CemBoatChest.render(node.vanillaPart, scale);
-                drawGeometry(node, vanilla, scale, selected);
-                if (!eyes) CemEmissive.render(selected, () -> drawGeometry(node, vanilla, scale, selected));
+                drawGeometry(node, vanilla, scale, selected, ownSkin);
+                if (!eyes) CemEmissive.render(selected, () -> drawGeometry(node, vanilla, scale, selected, false));
             }
-            for (CemModel.Node child : node.children) renderPart(child, pose, vanilla, scale, false, selected, eyes);
+            for (CemModel.Node child : node.children)
+                renderPart(child, pose, vanilla, scale, false, selected, eyes, ownSkin);
         } finally {
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, previousTexture);
             CemRuntime.texture(previousResource);
@@ -160,8 +177,9 @@ public final class CemGeometry {
             && vanilla.get("left_wing") == vanilla.get("right_wing");
     }
 
+    /** {@code skin}: the player's own skin is bound, so Wawel Auth may draw the overlay pieces. */
     private void drawGeometry(CemModel.Node node, Map<String, ModelRenderer> vanilla, float scale,
-        net.minecraft.util.ResourceLocation texture) {
+        net.minecraft.util.ResourceLocation texture, boolean skin) {
         ModelRenderer original = node.vanillaGeometry ? vanilla.get(node.vanillaPart) : null;
         if (original != null) {
             int previousTexture = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
@@ -188,20 +206,34 @@ public final class CemGeometry {
                 }
             }
         }
-        List<float[]> geometry = faces.get(node.index);
-        if (!geometry.isEmpty()) {
-            Tessellator tessellator = Tessellator.instance;
-            tessellator.startDrawingQuads();
-            for (float[] face : geometry) {
-                tessellator.setNormal(face[20], face[21], face[22]);
-                for (int vertex = 0; vertex < 20; vertex += 5) tessellator.addVertexWithUV(
-                    face[vertex] * scale,
-                    face[vertex + 1] * scale,
-                    face[vertex + 2] * scale,
-                    face[vertex + 3],
-                    face[vertex + 4]);
-            }
-            tessellator.draw();
+        draw(faces.get(node.index), scale);
+        for (OverlayBox piece : overlays.get(node.index))
+            if (!skin || !WawelAuthCompat.submit(piece.overlay)) draw(piece.faces, scale);
+    }
+
+    private static void draw(List<float[]> geometry, float scale) {
+        if (geometry.isEmpty()) return;
+        Tessellator tessellator = Tessellator.instance;
+        tessellator.startDrawingQuads();
+        for (float[] face : geometry) {
+            tessellator.setNormal(face[20], face[21], face[22]);
+            for (int vertex = 0; vertex < 20; vertex += 5) tessellator.addVertexWithUV(
+                face[vertex] * scale,
+                face[vertex + 1] * scale,
+                face[vertex + 2] * scale,
+                face[vertex + 3],
+                face[vertex + 4]);
+        }
+        tessellator.draw();
+    }
+
+    private static final class OverlayBox {
+
+        final WawelAuthOverlays.Overlay overlay;
+        final List<float[]> faces = new ArrayList<>();
+
+        OverlayBox(WawelAuthOverlays.Overlay overlay) {
+            this.overlay = overlay;
         }
     }
 }
