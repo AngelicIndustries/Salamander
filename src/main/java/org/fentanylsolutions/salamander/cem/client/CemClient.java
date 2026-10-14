@@ -68,7 +68,7 @@ public final class CemClient {
         EntityLivingBase living = entity instanceof EntityLivingBase ? (EntityLivingBase) entity : null;
         values.put("frame_counter", (double) (frame % 27720));
         values.put("frame_time", frameTime);
-        values.put("age", entity == null ? (double) age : entity.ticksExisted + (double) partialTicks);
+        values.put("age", entity == null ? (double) age : age(entity, partialTicks));
         values.put("limb_swing", (double) limbSwing);
         values.put("limb_speed", (double) limbSpeed);
         values.put("head_yaw", (double) MathHelper.wrapAngleTo180_float(headYaw));
@@ -175,6 +175,17 @@ public final class CemClient {
         values.put("day_count", (double) (entity.worldObj.getWorldTime() / 24000));
         if (subject instanceof CemEntityInputs) ((CemEntityInputs) subject).salamander$cemInputs(values, partialTicks);
         return values;
+    }
+
+    /**
+     * Entities outside the world, such as a quest book's player portrait, never tick. Their age follows the client
+     * clock instead, so animations keep playing rather than freezing on one frame, mid-blink for example.
+     */
+    private static double age(net.minecraft.entity.Entity entity, float partialTicks) {
+        World world = entity.worldObj;
+        if (world != null && world.getEntityByID(entity.getEntityId()) == entity)
+            return entity.ticksExisted + (double) partialTicks;
+        return entity.ticksExisted + Minecraft.getSystemTime() / 50.0;
     }
 
     private static double interpolate(double previous, double current, float partialTicks) {
