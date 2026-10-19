@@ -52,8 +52,9 @@ dependencies {
     runtimeOnlyNonPublishable(rfg.deobf("maven.modrinth:bugtorch:1.3.1"))
     runtimeOnlyNonPublishable(rfg.deobf("curse.maven:catalogue-vintage-1465746:8384975")) // 1.0.8-1.7.10
     runtimeOnlyNonPublishable(wawelAuthDependency)
-    runtimeOnlyNonPublishable("dev.dediamondpro.resourcify:VintageResourcify:1.0.5:dev")
-    runtimeOnlyNonPublishable("org.fentanylsolutions.vrap:vrap:1.0.1:dev")
+    // Off until Resourcify moves to AngelLib: it needs FentLib, whose mixins clash with AngelLib's. vrap needs it.
+    //runtimeOnlyNonPublishable("dev.dediamondpro.resourcify:VintageResourcify:1.0.5:dev")
+    //runtimeOnlyNonPublishable("org.fentanylsolutions.vrap:vrap:1.0.1:dev")
     runtimeOnlyNonPublishable("com.falsepattern:forgelin-mc1.7.10:2.4.3-2.4.10")
     runtimeOnlyNonPublishable("industries.angelic.angellib:AngelLib:1.0.0:dev") // WawelAuth dev runtime
     runtimeOnlyNonPublishable("com.github.GTNewHorizons:ModularUI2:2.3.92-1.7.10:dev") // WawelAuth UI
