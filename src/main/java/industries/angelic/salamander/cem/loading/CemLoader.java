@@ -91,10 +91,10 @@ public final class CemLoader {
                 .getAsBoolean()) {
                 parent.vanillaGeometry = false;
                 // Named native children have their own CEM slots (villager nose, bee torso, etc.).
-                // Replacing a parent removes its geometry and anonymous children, not those slots.
+                // Replacing a parent removes its geometry and anonymous children, not those slots, as in
+                // OptiFine. That holds for root too: FA+Player replaces root with animation-only parts.
                 // Several entries can replace the same slot. Preserve custom siblings already loaded.
-                parent.children.removeIf(
-                    child -> child.vanillaPart != null && (parent == root || child.vanillaPart.startsWith("$")));
+                parent.children.removeIf(child -> child.vanillaPart != null && child.vanillaPart.startsWith("$"));
             }
             CemModel.Node custom = parsePart(model, parent, textureSize, location, 0);
             parent.children.add(custom);

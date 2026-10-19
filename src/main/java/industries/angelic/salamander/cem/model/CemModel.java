@@ -85,7 +85,20 @@ public final class CemModel {
                 "is_sneaking",
                 "is_sprinting",
                 "is_tamed",
-                "is_wet")));
+                "is_wet",
+                // EMF additions
+                "is_paused",
+                "is_jumping",
+                "is_blocking",
+                "is_using_item",
+                "is_right_handed",
+                "is_holding_item_right",
+                "is_holding_item_left",
+                "is_swinging_right_arm",
+                "is_swinging_left_arm",
+                "fluid_depth",
+                "fluid_depth_up",
+                "fluid_depth_down")));
     public static final Set<String> RENDER_PROPERTIES = Collections.unmodifiableSet(
         new HashSet<>(
             Arrays.asList(

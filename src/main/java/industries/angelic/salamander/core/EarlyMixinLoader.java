@@ -37,6 +37,7 @@ public class EarlyMixinLoader implements IEarlyMixinLoader, IFMLLoadingPlugin {
             mixins.add("minecraft.client.renderer.entity.MixinRenderMooshroomCem");
             mixins.add("minecraft.client.renderer.MixinRenderGlobalCemBeds");
             mixins.add("minecraft.client.AccessorCemNbtList");
+            mixins.add("minecraft.client.AccessorCemEntityLivingBase");
             mixins.add("minecraft.client.MixinEntityArrowCemInputs");
             mixins.add("minecraft.client.MixinEntitySquidCemInputs");
             mixins.add("minecraft.client.MixinEntitySilverfishCemInputs");

@@ -15,10 +15,12 @@ import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import industries.angelic.salamander.cem.animation.CemNbtTest;
+
 /** Ordered Random Entities predicates shared by model and texture selection. */
 public final class CemRules {
 
-    public interface Facts {
+    public interface Facts extends CemNbtTest.Source {
 
         String value(String key);
 
@@ -26,8 +28,6 @@ public final class CemRules {
             String value = value(key);
             return value == null ? java.util.Collections.emptyList() : java.util.Collections.singletonList(value);
         }
-
-        List<String> nbt(String path, boolean raw);
 
         long seed();
     }
@@ -101,20 +101,8 @@ public final class CemRules {
                 String suffix = "." + index;
                 if (key.startsWith("nbt." + index + ".")) {
                     String path = key.substring(("nbt." + index + ".").length());
-                    String pattern = properties.getProperty(key)
-                        .trim();
-                    boolean inverted = pattern.startsWith("!");
-                    String positive = inverted ? pattern.substring(1) : pattern;
-                    boolean raw = positive.startsWith("raw:");
-                    Predicate<String> match = match(positive);
-                    rule.conditions.add(f -> {
-                        List<String> values = f.nbt(path, raw);
-                        boolean result = positive.startsWith("exists:")
-                            ? !values.isEmpty() == Boolean.parseBoolean(positive.substring(7))
-                            : values.stream()
-                                .anyMatch(match);
-                        return result != inverted;
-                    });
+                    CemNbtTest test = CemNbtTest.of(properties.getProperty(key));
+                    rule.conditions.add(f -> test.test(f, path));
                 } else if (key.endsWith(suffix)) {
                     String type = key.substring(0, key.length() - suffix.length());
                     String value = properties.getProperty(key)

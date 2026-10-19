@@ -64,6 +64,7 @@ dependencies {
     // Optional integrations under development
     compileOnly("com.github.GTNewHorizons:Angelica:2.2.29:dev")
     compileOnly(wawelAuthDependency) // Skin layers, models and pixels
+    compileOnly("com.github.GTNewHorizons:Backhand:1.8.15:dev") // Off hand for EMF variables and nbt()
 
     // Test
     testImplementation("junit:junit:4.13.2")

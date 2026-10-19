@@ -11,6 +11,7 @@ import net.minecraft.world.World;
 
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.TickEvent;
+import industries.angelic.salamander.cem.animation.CemNbtQueries;
 import industries.angelic.salamander.cem.model.CemModel;
 
 /** Frame clock and per-entity animation ownership independent of the rendering backend. */
@@ -87,6 +88,11 @@ public final class CemClient {
         values.put("is_in_hand", CemItemContext.hand() ? 1d : 0d);
         values.put("is_in_gui", CemItemContext.gui() ? 1d : 0d);
         values.put("is_in_item_frame", CemRuntime.itemFrame() ? 1d : 0d);
+        values.put(
+            "is_paused",
+            Minecraft.getMinecraft()
+                .isGamePaused() ? 1d : 0d);
+        nbt(subject, values);
         if (entity == null) {
             if (subject instanceof net.minecraft.tileentity.TileEntity) {
                 net.minecraft.tileentity.TileEntity tile = (net.minecraft.tileentity.TileEntity) subject;
@@ -149,6 +155,7 @@ public final class CemClient {
             values.put("is_aggressive", CemClientSignals.aggressive(living) ? 1d : 0d);
             values.put("is_hurt", living.hurtTime > 0 ? 1d : 0d);
             values.put("is_child", living.isChild() ? 1d : 0d);
+            CemEmfInputs.put(living, partialTicks, values.get("swing_progress"), values);
         }
         if (entity instanceof net.minecraft.entity.passive.EntityTameable) {
             net.minecraft.entity.passive.EntityTameable tame = (net.minecraft.entity.passive.EntityTameable) entity;
@@ -174,6 +181,16 @@ public final class CemClient {
         values.put("day_count", (double) (entity.worldObj.getWorldTime() / 24000));
         if (subject instanceof CemEntityInputs) ((CemEntityInputs) subject).salamander$cemInputs(values, partialTicks);
         return values;
+    }
+
+    /** Answers each loaded animation's nbt() calls for the subject, from its NBT as newer versions write it. */
+    private static void nbt(Object subject, Map<String, Double> values) {
+        if (!(subject instanceof net.minecraft.entity.Entity || subject instanceof net.minecraft.tileentity.TileEntity))
+            return;
+        java.util.Collection<CemNbtQueries.Query> queries = CemNbtQueries.all();
+        if (queries.isEmpty()) return;
+        CemRuleFacts facts = CemRuleFacts.get(subject);
+        for (CemNbtQueries.Query query : queries) values.put(query.input, query.test.test(facts, query.path) ? 1d : 0d);
     }
 
     /**

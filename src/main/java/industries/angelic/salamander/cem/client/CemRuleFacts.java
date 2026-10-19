@@ -251,8 +251,10 @@ public final class CemRuleFacts implements CemRules.Facts {
         if (nbt == null) {
             nbt = new NBTTagCompound();
             Object object = subject.get();
-            if (object instanceof Entity) ((Entity) object).writeToNBT(nbt);
-            else if (object instanceof TileEntity) ((TileEntity) object).writeToNBT(nbt);
+            if (object instanceof Entity) {
+                ((Entity) object).writeToNBT(nbt);
+                CemModernNbt.add((Entity) object, nbt);
+            } else if (object instanceof TileEntity) ((TileEntity) object).writeToNBT(nbt);
             // Vanilla snow golems in 1.7 always have their pumpkin; later removability uses the backport's NBT.
             if (object != null && object.getClass() == net.minecraft.entity.monster.EntitySnowman.class)
                 nbt.setBoolean("Pumpkin", true);
@@ -265,12 +267,14 @@ public final class CemRuleFacts implements CemRules.Facts {
     private static void walk(NBTBase tag, String[] path, int index, boolean raw, List<String> result) {
         if (tag == null || result.size() > 4096) return;
         if (index == path.length) {
-            if (raw) result.add(tag.toString());
+            // As ETF reads raw values: a string itself is unquoted, anything else is SNBT.
+            if (raw) result
+                .add(tag instanceof NBTTagString ? ((NBTTagString) tag).func_150285_a_() : CemModernNbt.snbt(tag));
             else if (tag instanceof NBTTagString) result.add(((NBTTagString) tag).func_150285_a_());
             else if (tag instanceof NBTBase.NBTPrimitive) {
                 double number = ((NBTBase.NBTPrimitive) tag).func_150286_g();
                 result.add(number == (long) number ? String.valueOf((long) number) : String.valueOf(number));
-            } else result.add(tag.toString());
+            } else result.add(CemModernNbt.snbt(tag));
             return;
         }
         String key = path[index];

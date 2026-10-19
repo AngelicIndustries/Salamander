@@ -49,6 +49,17 @@ public class WawelAuthOverlaysTest {
     }
 
     @Test
+    public void slightlyShrunkPiecesStillMatch() throws Exception {
+        // Fresh Animations' player hat and jacket, a hair inside the vanilla inflation.
+        String hat = "{\"part\":\"headwear\",\"id\":\"hat\",\"boxes\":[{\"coordinates\":[-4,-8,-4,8,8,8],"
+            + "\"textureOffset\":[32,0],\"sizeAdd\":0.49}]}";
+        String jacket = "{\"part\":\"jacket\",\"id\":\"jacket\",\"boxes\":[{\"coordinates\":[-4,0,-2,8,12,4],"
+            + "\"textureOffset\":[16,32],\"sizeAdd\":0.24}]}";
+        assertNotNull(only(hat));
+        assertNotNull(only(jacket));
+    }
+
+    @Test
     public void otherBoxesAreLeftToThePack() throws Exception {
         // Shifted front face, wrong inflation, mirrored, and a plain body box.
         assertNull(only(JACKET.replace("\"uvNorth\":[20,36,28,48]", "\"uvNorth\":[21,36,29,48]")));

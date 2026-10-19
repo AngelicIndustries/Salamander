@@ -139,6 +139,17 @@ public final class CemExpressionParser {
             }
             if (start == position) throw error("Expected a value");
             String name = source.substring(start, position);
+            if (name.equals("nbt") && take("(")) {
+                String[] arguments = rawArguments();
+                if (arguments.length != 2) throw error("nbt requires an NBT path and a test");
+                String input;
+                try {
+                    input = CemNbtQueries.register(arguments[0], arguments[1]);
+                } catch (IllegalArgumentException exception) {
+                    throw error(exception.getMessage());
+                }
+                return c -> c.inputs.getOrDefault(input, 0d);
+            }
             if (take("(")) {
                 List<CemExpression> arguments = new ArrayList<>();
                 if (!take(")")) {
@@ -307,6 +318,33 @@ public final class CemExpressionParser {
                     throw new IllegalStateException(name);
             }
         };
+    }
+
+    /** Arguments taken as text up to the closing parenthesis, split at top-level commas, as EMF reads nbt(). */
+    private String[] rawArguments() {
+        List<String> arguments = new ArrayList<>();
+        int depth = 0, argument = position;
+        while (position < source.length()) {
+            char ch = source.charAt(position);
+            if (ch == '(' || ch == '[' || ch == '{') depth++;
+            else if (ch == ')' || ch == ']' || ch == '}') {
+                if (depth == 0 && ch == ')') {
+                    arguments.add(
+                        source.substring(argument, position)
+                            .trim());
+                    position++;
+                    return arguments.toArray(new String[0]);
+                }
+                depth--;
+            } else if (ch == ',' && depth == 0) {
+                arguments.add(
+                    source.substring(argument, position)
+                        .trim());
+                argument = position + 1;
+            }
+            position++;
+        }
+        throw error("Expected ')'");
     }
 
     private static double wrap(double value, double halfTurn) {

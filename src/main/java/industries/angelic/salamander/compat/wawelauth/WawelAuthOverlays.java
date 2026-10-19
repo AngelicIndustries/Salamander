@@ -10,6 +10,8 @@ import industries.angelic.salamander.cem.model.CemModel;
 public final class WawelAuthOverlays {
 
     private static final float EPSILON = 1.0e-3f;
+    /** Packs shrink overlays a hair to avoid z-fighting, as Fresh Animations' hat (0.49) and jacket (0.24) do. */
+    private static final float INFLATION_SLACK = 0.02f;
 
     /** The vanilla overlay pieces: part name, UV origin, size and inflation. Sleeves come classic and slim. */
     private static final Net[] NETS = { new Net("HAT", 32, 0, 8, 8, 8, 0.5f),
@@ -41,12 +43,12 @@ public final class WawelAuthOverlays {
         return null;
     }
 
-    /** The drawn size is the vanilla size plus the vanilla inflation, however the pack spells it. */
+    /** The drawn size is the vanilla size plus about the vanilla inflation, however the pack spells it. */
     private static boolean sized(CemModel.Box box, Net net) {
         int[] size = { net.width, net.height, net.depth };
         for (int axis = 0; axis < 3; axis++) {
             float drawn = box.coordinates[axis + 3] + 2 * box.inflation[axis];
-            if (Math.abs(drawn - (size[axis] + 2 * net.inflation)) > EPSILON) return false;
+            if (Math.abs(drawn - (size[axis] + 2 * net.inflation)) > 2 * INFLATION_SLACK + EPSILON) return false;
         }
         return true;
     }
