@@ -9,10 +9,10 @@ Minecraft 1.7.10 support for [GeckoLib](https://github.com/bernie-g/geckolib) (3
 
 [![curse](images/badges/curse.png)](https://www.curseforge.com/minecraft/mc-mods/salamander)
 [![modrinth](images/badges/modrinth.png)](https://modrinth.com/mod/salamander)
-[![67](images/badges/67.png)](https://67minecraft.com/mod/salamander)
 -->
 
 [![hub](images/badges/github.png)](https://github.com/AngelicIndustries/Salamander/releases)
+[![67](images/badges/67.png)](https://67minecraft.com/mod/salamander)
 [![maven](images/badges/maven.png)](https://maven.angelic.industries/#/releases/industries/angelic/salamander/Salamander)
 [![cord](images/badges/cord.png)](https://discord.gg/xAWCqGrguG)
 ![forge](images/badges/forge.png)
