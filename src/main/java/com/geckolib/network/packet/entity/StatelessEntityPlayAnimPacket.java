@@ -1,7 +1,5 @@
 package com.geckolib.network.packet.entity;
 
-import org.fentanylsolutions.salamander.Salamander;
-
 import com.geckolib.animation.RawAnimation;
 import com.geckolib.network.GeckoLibNetwork;
 import com.geckolib.network.RawAnimationPacketCodec;
@@ -9,6 +7,7 @@ import com.geckolib.network.RawAnimationPacketCodec;
 import cpw.mods.fml.common.network.simpleimpl.IMessage;
 import cpw.mods.fml.common.network.simpleimpl.IMessageHandler;
 import cpw.mods.fml.common.network.simpleimpl.MessageContext;
+import industries.angelic.salamander.Salamander;
 import io.netty.buffer.ByteBuf;
 
 /** Plays a stateless animation chain for one ordinary or replaced client entity. */

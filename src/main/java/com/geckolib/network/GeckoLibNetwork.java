@@ -6,8 +6,6 @@ import net.minecraft.network.Packet;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.WorldServer;
 
-import org.fentanylsolutions.salamander.Salamander;
-
 import com.geckolib.animatable.GeoReplacedEntity;
 import com.geckolib.animatable.SingletonGeoAnimatable;
 import com.geckolib.animation.RawAnimation;
@@ -30,6 +28,7 @@ import cpw.mods.fml.common.network.NetworkRegistry;
 import cpw.mods.fml.common.network.simpleimpl.IMessage;
 import cpw.mods.fml.common.network.simpleimpl.SimpleNetworkWrapper;
 import cpw.mods.fml.relauncher.Side;
+import industries.angelic.salamander.Salamander;
 
 /** Transient server-to-client animation synchronization. */
 public final class GeckoLibNetwork {

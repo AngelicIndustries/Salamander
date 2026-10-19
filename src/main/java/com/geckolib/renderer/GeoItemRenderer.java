@@ -7,7 +7,6 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.client.IItemRenderer;
 
-import org.fentanylsolutions.salamander.mixins.early.minecraft.client.AccessorMinecraft;
 import org.lwjgl.opengl.GL11;
 
 import com.geckolib.animatable.GeoItem;
@@ -23,6 +22,7 @@ import com.geckolib.renderer.layer.GeoRenderLayersContainer;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
+import industries.angelic.salamander.mixins.early.minecraft.client.AccessorMinecraft;
 
 /** Forge 1.7 item renderer for singleton GeckoLib animatables. */
 @SideOnly(Side.CLIENT)

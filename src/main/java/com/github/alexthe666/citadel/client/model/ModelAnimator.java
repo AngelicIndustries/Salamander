@@ -12,14 +12,13 @@ import java.util.function.DoubleSupplier;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.MathHelper;
 
-import org.fentanylsolutions.salamander.mixins.early.minecraft.client.AccessorMinecraft;
-
 import com.github.alexthe666.citadel.animation.Animation;
 import com.github.alexthe666.citadel.animation.IAnimatedEntity;
 import com.github.alexthe666.citadel.client.model.container.Transform;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
+import industries.angelic.salamander.mixins.early.minecraft.client.AccessorMinecraft;
 
 /** Citadel's imperative keyframe animator. */
 @SideOnly(Side.CLIENT)

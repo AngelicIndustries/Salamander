@@ -1,7 +1,7 @@
 {
   "required": true,
   "minVersion": "0.8.7-GTNH",
-  "package": "org.fentanylsolutions.salamander.mixins.mid",
+  "package": "industries.angelic.salamander.mixins.mid",
   "refmap": "mixins.salamander.refmap.json",
   "target": "@env(DEFAULT)",
   "compatibilityLevel": "JAVA_8",

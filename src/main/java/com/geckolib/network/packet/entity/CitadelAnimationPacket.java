@@ -1,12 +1,11 @@
 package com.geckolib.network.packet.entity;
 
-import org.fentanylsolutions.salamander.Salamander;
-
 import com.geckolib.network.GeckoLibNetwork;
 
 import cpw.mods.fml.common.network.simpleimpl.IMessage;
 import cpw.mods.fml.common.network.simpleimpl.IMessageHandler;
 import cpw.mods.fml.common.network.simpleimpl.MessageContext;
+import industries.angelic.salamander.Salamander;
 import io.netty.buffer.ByteBuf;
 
 /** Synchronizes one Citadel animation selection to clients tracking an entity. */

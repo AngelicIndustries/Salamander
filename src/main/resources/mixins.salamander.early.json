@@ -4,7 +4,7 @@
   "mixinextras": {
     "minVersion": "0.5.0"
   },
-  "package": "org.fentanylsolutions.salamander.mixins.early",
+  "package": "industries.angelic.salamander.mixins.early",
   "refmap": "mixins.salamander.refmap.json",
   "target": "@env(DEFAULT)",
   "compatibilityLevel": "JAVA_8",

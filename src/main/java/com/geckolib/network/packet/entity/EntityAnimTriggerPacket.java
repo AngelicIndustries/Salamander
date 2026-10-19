@@ -1,13 +1,12 @@
 package com.geckolib.network.packet.entity;
 
-import org.fentanylsolutions.salamander.Salamander;
-
 import com.geckolib.network.GeckoLibNetwork;
 
 import cpw.mods.fml.common.network.ByteBufUtils;
 import cpw.mods.fml.common.network.simpleimpl.IMessage;
 import cpw.mods.fml.common.network.simpleimpl.IMessageHandler;
 import cpw.mods.fml.common.network.simpleimpl.MessageContext;
+import industries.angelic.salamander.Salamander;
 import io.netty.buffer.ByteBuf;
 
 /** Starts one registered triggerable animation on a client-side entity. */

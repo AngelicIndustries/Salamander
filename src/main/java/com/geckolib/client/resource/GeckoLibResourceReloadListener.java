@@ -25,8 +25,6 @@ import net.minecraft.client.resources.IResourceManagerReloadListener;
 import net.minecraft.client.resources.IResourcePack;
 import net.minecraft.util.ResourceLocation;
 
-import org.fentanylsolutions.salamander.mixins.early.minecraft.client.resources.AccessorAbstractResourcePack;
-
 import com.geckolib.GeckoLibConstants;
 import com.geckolib.cache.GeckoLibResources;
 import com.geckolib.cache.animation.BakedAnimations;
@@ -38,6 +36,7 @@ import com.gtnewhorizon.gtnhlib.client.model.loading.GlobalResourceManager;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
+import industries.angelic.salamander.mixins.early.minecraft.client.resources.AccessorAbstractResourcePack;
 
 /** Client resource reload bridge using GTNHLib's resource-manager accessors. */
 @SideOnly(Side.CLIENT)

@@ -9,11 +9,11 @@ Minecraft 1.7.10 support for [GeckoLib](https://github.com/bernie-g/geckolib) (3
 
 [![curse](images/badges/curse.png)](https://www.curseforge.com/minecraft/mc-mods/salamander)
 [![modrinth](images/badges/modrinth.png)](https://modrinth.com/mod/salamander)
-[![67](images/badges/67.png)](https://67.fentanylsolutions.org/mod/salamander)
+[![67](images/badges/67.png)](https://67minecraft.com/mod/salamander)
 -->
 
-[![hub](images/badges/github.png)](https://github.com/JackOfNoneTrades/Salamander/releases)
-[![maven](images/badges/maven.png)](https://maven.fentanylsolutions.org/#/releases/org/fentanylsolutions/salamander/Salamander)
+[![hub](images/badges/github.png)](https://github.com/AngelicIndustries/Salamander/releases)
+[![maven](images/badges/maven.png)](https://maven.angelic.industries/#/releases/industries/angelic/salamander/Salamander)
 [![cord](images/badges/cord.png)](https://discord.gg/xAWCqGrguG)
 ![forge](images/badges/forge.png)
 
@@ -24,8 +24,8 @@ Minecraft 1.7.10 support for [GeckoLib](https://github.com/bernie-g/geckolib) (3
 
 ## Documentation
 
-* [Custom entity models (CEM)](https://github.com/JackOfNoneTrades/Salamander/wiki/Custom-Entity-Models): resource packs, supported targets, configuration, and compatibility.
-* [Development](https://github.com/JackOfNoneTrades/Salamander/wiki/Development): building, regression tests, and debug models.
+* [Custom entity models (CEM)](https://github.com/AngelicIndustries/Salamander/wiki/Custom-Entity-Models): resource packs, supported targets, configuration, and compatibility.
+* [Development](https://github.com/AngelicIndustries/Salamander/wiki/Development): building, regression tests, and debug models.
 
 ## Building
 

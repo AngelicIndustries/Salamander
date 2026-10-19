@@ -7,7 +7,7 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldSavedData;
 import net.minecraftforge.common.DimensionManager;
 
-import org.fentanylsolutions.salamander.Salamander;
+import industries.angelic.salamander.Salamander;
 
 /** Persistent overworld counter used to reserve unique singleton animation instance IDs. */
 public final class AnimatableIdCache extends WorldSavedData {

@@ -1,7 +1,5 @@
 package com.geckolib.network.packet.singleton;
 
-import org.fentanylsolutions.salamander.Salamander;
-
 import com.geckolib.network.GeckoLibNetwork;
 import com.geckolib.network.RawAnimationPacketCodec;
 
@@ -9,6 +7,7 @@ import cpw.mods.fml.common.network.ByteBufUtils;
 import cpw.mods.fml.common.network.simpleimpl.IMessage;
 import cpw.mods.fml.common.network.simpleimpl.IMessageHandler;
 import cpw.mods.fml.common.network.simpleimpl.MessageContext;
+import industries.angelic.salamander.Salamander;
 import io.netty.buffer.ByteBuf;
 
 /** Stops one stateless animation key for a singleton animatable instance. */

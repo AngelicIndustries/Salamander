@@ -6,7 +6,7 @@
 		"description": "Minecraft 1.7.10 support for GeckoLib (3, 4, 5), model-related portions of Citadel, and OptiFine-format custom entity models.",
 		"version": "${modVersion}",
 		"mcversion": "${minecraftVersion}",
-		"url": "https://github.com/JackOfNoneTrades/Salamander",
+		"url": "https://github.com/AngelicIndustries/Salamander",
 		"updateUrl": "",
 		"authorList": ["JackOfNoneTrades"],
 		"credits": "GeckoLib, Citadel, Alex's Mobs, Ice and Fire, and the GTNewHorizons tooling",

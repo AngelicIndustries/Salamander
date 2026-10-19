@@ -35,7 +35,7 @@
  */
 dependencies {
     // Supply a local Wawel Auth development jar with -PwawelAuthJar, e.g. a build with an unpublished skin API.
-    def wawelAuthDependency = "org.fentanylsolutions.wawelauth:WawelAuth:c82ca8d-snapshot:dev"
+    def wawelAuthDependency = "industries.angelic.wawelauth:WawelAuth:996a655-snapshot:dev"
     if (project.hasProperty("wawelAuthJar")) {
         def wawelAuthJar = file(project.property("wawelAuthJar"))
         if (!wawelAuthJar.isFile()) {
@@ -55,7 +55,7 @@ dependencies {
     runtimeOnlyNonPublishable("dev.dediamondpro.resourcify:VintageResourcify:1.0.5:dev")
     runtimeOnlyNonPublishable("org.fentanylsolutions.vrap:vrap:1.0.1:dev")
     runtimeOnlyNonPublishable("com.falsepattern:forgelin-mc1.7.10:2.4.3-2.4.10")
-    runtimeOnlyNonPublishable("org.fentanylsolutions.fentlib:FentLib:0.0.55:dev") // WawelAuth dev runtime
+    runtimeOnlyNonPublishable("industries.angelic.angellib:AngelLib:1.0.0:dev") // WawelAuth dev runtime
     runtimeOnlyNonPublishable("com.github.GTNewHorizons:ModularUI2:2.3.92-1.7.10:dev") // WawelAuth UI
 
     // Compile + runtime
