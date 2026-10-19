@@ -40,6 +40,10 @@ public class LateMixinLoader implements ILateMixinLoader {
             mixins.add("etfuturum.MixinModelBannerCem");
             mixins.add("etfuturum.MixinModelHeadCem");
         }
+        if (cpw.mods.fml.relauncher.FMLLaunchHandler.side()
+            .isClient() && loadedMods.contains("armoredarms")) {
+            mixins.add("armoredarms.MixinArmModelRendererPlayerCem");
+        }
         return mixins;
     }
 }

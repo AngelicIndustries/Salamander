@@ -6,6 +6,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 
 import net.minecraft.client.model.ModelBase;
 import net.minecraft.client.model.ModelDragon;
@@ -206,6 +207,12 @@ public final class CemRuntime {
 
     public static boolean firstPersonArm(net.minecraft.client.model.ModelBiped model,
         net.minecraft.entity.player.EntityPlayer player, float scale) {
+        return firstPersonArm(model, player, scale, true);
+    }
+
+    /** Arm renderers can hide wear under armor without hiding the base hand or allowing WA to add the sleeve back. */
+    public static boolean firstPersonArm(net.minecraft.client.model.ModelBiped model,
+        net.minecraft.entity.player.EntityPlayer player, float scale, boolean sleeve) {
         if (!CemConfig.enabled || !(model instanceof CemModelParts) || !CemPlayers.model(player, model)) return false;
         Subject previousSubject = enter(player, 0);
         Draw previousDraw = draw;
@@ -215,14 +222,15 @@ public final class CemRuntime {
             CemResources.Selection selection = CemResources.INSTANCE
                 .select(CemTargets.candidates(player, model, texture), binding, player);
             if (selection == null) return false;
-            if (replaces(selection.entry, "right_sleeve"))
-                WawelAuthCompat.claimLayers(Collections.singletonList("right_sleeve"));
             hand = new Draw(binding, selection.entry, player, 0, 0, 0, 0, 0, 0, texture, true);
             hand.extras = true;
             draw = hand;
-            boolean rendered = renderPart(hand, "right_arm", scale, false);
-            renderPart(hand, "right_sleeve", scale, false);
-            return rendered;
+            Draw selectedHand = hand;
+            return firstPersonParts(
+                sleeve,
+                replaces(selection.entry, "right_sleeve"),
+                () -> WawelAuthCompat.claimLayers(Collections.singletonList("right_sleeve")),
+                name -> renderPart(selectedHand, name, scale, false));
         } catch (Exception exception) {
             if (hand != null) CemResources.INSTANCE.fail(hand.entry.model, exception);
             return false;
@@ -231,6 +239,16 @@ public final class CemRuntime {
             draw = previousDraw;
             leave(previousSubject);
         }
+    }
+
+    /** Claims precede geometry; WA submits overlays immediately, before the caller's later armor layers. */
+    static boolean firstPersonParts(boolean sleeve, boolean replacesSleeve, Runnable claimSleeve,
+        Predicate<String> renderPart) {
+        // Even a pack without a sleeve slot must suppress WA's outer first-person sleeve when wear is disabled.
+        if (!sleeve || replacesSleeve) claimSleeve.run();
+        boolean rendered = renderPart.test("right_arm");
+        if (sleeve) renderPart.test("right_sleeve");
+        return rendered;
     }
 
     /** The native cape call includes legacy cape physics in GL; pack capes define their own pose. */
