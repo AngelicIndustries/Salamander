@@ -1,6 +1,8 @@
 package industries.angelic.salamander.cem.client;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -23,6 +25,7 @@ public final class CemGeometry {
     private final List<List<float[]>> faces = new ArrayList<>();
     /** Boxes that are vanilla skin overlay pieces, which Wawel Auth may draw in their place. */
     private final List<List<OverlayBox>> overlays = new ArrayList<>();
+    private Map<String, List<Slice>> slices;
 
     public CemGeometry(CemModel model) {
         this.model = model;
@@ -103,6 +106,40 @@ public final class CemGeometry {
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, previous);
             CemRuntime.texture(previousResource);
             if (!normalized) GL11.glDisable(GL11.GL_NORMALIZE);
+        }
+    }
+
+    /**
+     * The model's slices of a skin overlay piece that it splits, such as {@code RIGHT_SLEEVE} cut at the elbow. Empty
+     * when the pack keeps the piece whole or leaves it out.
+     */
+    public List<Slice> slices(String piece) {
+        if (slices == null) {
+            slices = new HashMap<>();
+            collectSlices(model.root, new ArrayList<>());
+        }
+        List<Slice> found = slices.get(piece);
+        return found == null ? Collections.emptyList() : found;
+    }
+
+    private void collectSlices(CemModel.Node node, List<CemModel.Node> path) {
+        path.add(node);
+        for (OverlayBox piece : overlays.get(node.index))
+            if (!piece.overlay.whole()) slices.computeIfAbsent(piece.overlay.part, ignored -> new ArrayList<>())
+                .add(new Slice(new ArrayList<>(path), piece.overlay));
+        for (CemModel.Node child : node.children) collectSlices(child, path);
+        path.remove(path.size() - 1);
+    }
+
+    /** One slice of a split overlay piece: the bones from the root down to it, and the rows it covers. */
+    public static final class Slice {
+
+        public final List<CemModel.Node> path;
+        public final WawelAuthOverlays.Overlay overlay;
+
+        Slice(List<CemModel.Node> path, WawelAuthOverlays.Overlay overlay) {
+            this.path = path;
+            this.overlay = overlay;
         }
     }
 

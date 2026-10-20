@@ -18,6 +18,7 @@ import net.minecraft.util.ResourceLocation;
 
 import industries.angelic.salamander.cem.model.CemModel;
 import industries.angelic.salamander.compat.wawelauth.WawelAuthCompat;
+import industries.angelic.salamander.compat.wawelauth.WawelAuthOverlays;
 import industries.angelic.salamander.config.CemConfig;
 
 /** Render-thread scopes keep nested entity, tile, item and multipass draws isolated. */
@@ -417,10 +418,19 @@ public final class CemRuntime {
             || !(model instanceof CemModelParts)) return false;
         CemBinding binding = BINDINGS
             .computeIfAbsent(model, m -> new CemBinding(m, ((CemModelParts) m).salamander$cemParts()));
-        CemModel.Node node = body.entry.model.originalParts.get(binding.names.get(part));
+        String name = binding.names.get(part);
+        CemModel.Node node = body.entry.model.originalParts.get(name);
         if (node == null) return false;
         if (!part.showModel || part.isHidden) return true;
         body.evaluate();
+        String piece = CemArmorSlices.piece(name);
+        List<CemGeometry.Slice> slices = piece == null || part.childModels != null && !part.childModels.isEmpty()
+            ? Collections.emptyList()
+            : body.entry.geometry.slices(piece);
+        if (!slices.isEmpty()) {
+            armorSlices(body, part, slices, scale, rotationOrder);
+            return true;
+        }
         org.lwjgl.opengl.GL11.glPushMatrix();
         rendering = true;
         try {
@@ -434,6 +444,47 @@ public final class CemRuntime {
             org.lwjgl.opengl.GL11.glPopMatrix();
         }
         return true;
+    }
+
+    /**
+     * An armor part on a split limb: cut at the joints into closed shares, each on the bone of the slice it covers. A
+     * hidden bone leaves its share out.
+     */
+    private static void armorSlices(Draw body, ModelRenderer part, List<CemGeometry.Slice> slices, float scale,
+        boolean rotationOrder) {
+        double[] pose = body.instance.pose;
+        List<CemGeometry.Slice> order = new java.util.ArrayList<>(slices);
+        order.sort(java.util.Comparator.comparingInt(slice -> slice.overlay.rowStart));
+        List<WawelAuthOverlays.Overlay> rows = new java.util.ArrayList<>();
+        for (CemGeometry.Slice slice : order) rows.add(slice.overlay);
+        rendering = true;
+        try {
+            for (int i = 0; i < order.size(); i++) {
+                CemGeometry.Slice slice = order.get(i);
+                if (!visible(slice, pose)) continue;
+                org.lwjgl.opengl.GL11.glPushMatrix();
+                try {
+                    body.frame.insertRoot(body.entry.model.root, pose, scale);
+                    for (int j = 1; j < slice.path.size(); j++)
+                        CemGeometry.transform(slice.path.get(j), pose, scale, j == 1 && rotationOrder);
+                    float[] offset = CemArmorSlices.offset(slice.overlay);
+                    org.lwjgl.opengl.GL11.glTranslatef(offset[0] * scale, offset[1] * scale, offset[2] * scale);
+                    net.minecraft.client.renderer.Tessellator tessellator = net.minecraft.client.renderer.Tessellator.instance;
+                    for (net.minecraft.client.model.TexturedQuad face : CemArmorSlices.share(part, rows, i))
+                        face.draw(tessellator, scale);
+                } finally {
+                    org.lwjgl.opengl.GL11.glPopMatrix();
+                }
+            }
+        } finally {
+            rendering = false;
+        }
+    }
+
+    private static boolean visible(CemGeometry.Slice slice, double[] pose) {
+        for (CemModel.Node node : slice.path) if (pose[node.index * CemModel.STRIDE + 9] == 0) return false;
+        CemModel.Node bone = slice.path.get(slice.path.size() - 1);
+        return pose[bone.index * CemModel.STRIDE + 10] != 0;
     }
 
     private static boolean renderPart(Draw selected, String name, float scale, boolean rotationOrder) {
