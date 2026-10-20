@@ -214,7 +214,9 @@ public final class CemRuntime {
     public static boolean firstPersonArm(net.minecraft.client.model.ModelBiped model,
         net.minecraft.entity.player.EntityPlayer player, float scale, boolean sleeve) {
         if (!CemConfig.enabled || !(model instanceof CemModelParts) || !CemPlayers.model(player, model)) return false;
-        Subject previousSubject = enter(player, 0);
+        float partial = ((industries.angelic.salamander.mixins.early.minecraft.client.AccessorMinecraft) net.minecraft.client.Minecraft
+            .getMinecraft()).salamander$getTimer().renderPartialTicks;
+        Subject previousSubject = enter(player, partial);
         Draw previousDraw = draw;
         Draw hand = null;
         try {
@@ -222,7 +224,23 @@ public final class CemRuntime {
             CemResources.Selection selection = CemResources.INSTANCE
                 .select(CemTargets.candidates(player, model, texture), binding, player);
             if (selection == null) return false;
-            hand = new Draw(binding, selection.entry, player, 0, 0, 0, 0, 0, 0, texture, true);
+            // The pack animates the hand as EMF does, from what a third-person render would pass this frame.
+            float body = CemClient.interpolateAngle(player.prevRenderYawOffset, player.renderYawOffset, partial);
+            float head = CemClient.interpolateAngle(player.prevRotationYawHead, player.rotationYawHead, partial);
+            float speed = Math
+                .min(1, player.prevLimbSwingAmount + (player.limbSwingAmount - player.prevLimbSwingAmount) * partial);
+            hand = new Draw(
+                binding,
+                selection.entry,
+                player,
+                partial,
+                player.limbSwing - player.limbSwingAmount * (1 - partial),
+                speed,
+                player.ticksExisted + partial,
+                head - body,
+                player.prevRotationPitch + (player.rotationPitch - player.prevRotationPitch) * partial,
+                texture,
+                true);
             hand.extras = true;
             draw = hand;
             Draw selectedHand = hand;
@@ -515,7 +533,8 @@ public final class CemRuntime {
         final Map<String, Double> inputs;
         final ResourceLocation texture;
         final Object object;
-        final boolean staticPose;
+        /** The first-person hand: its own animation instance, evaluated with is_first_person_hand. */
+        final boolean hand;
         final Map<String, Draw> layers = new HashMap<>();
         final CemRenderFrame frame;
         final Set<CemModel.Node> reachable = Collections.newSetFromMap(new IdentityHashMap<>());
@@ -529,7 +548,7 @@ public final class CemRuntime {
         }
 
         Draw(CemBinding binding, CemResources.Entry entry, Object object, float partial, float limb, float speed,
-            float age, float yaw, float pitch, ResourceLocation texture, boolean staticPose) {
+            float age, float yaw, float pitch, ResourceLocation texture, boolean hand) {
             this.binding = binding;
             this.parts = binding.parts(object);
             this.entry = entry;
@@ -537,9 +556,9 @@ public final class CemRuntime {
                 ? CemPlayerSkins.texture(texture, object)
                 : texture;
             this.object = object;
-            this.staticPose = staticPose;
+            this.hand = hand;
             instance = entry == null ? null
-                : staticPose ? entry.model.newInstance() : CemClient.instance(object, entry.model);
+                : hand ? CemClient.handInstance(object, entry.model) : CemClient.instance(object, entry.model);
             ModelBase nativeModel = binding.nativeModel;
             String type = nativeModel.getClass()
                 .getName();
@@ -548,6 +567,7 @@ public final class CemRuntime {
                     || type.endsWith(".ModelNewBoat")
                     || type.endsWith(".ModelRaft"));
             inputs = CemClient.inputs(object, partial, limb, speed, age, yaw, pitch);
+            if (hand) inputs.put("is_first_person_hand", 1d);
             if (object instanceof net.minecraft.entity.EntityLivingBase && !CemItemContext.hand()
                 && (nativeModel instanceof ModelSkeletonHead || type.endsWith(".ModelHead")))
                 inputs.put("is_on_head", 1d);
@@ -565,7 +585,7 @@ public final class CemRuntime {
             parts = parent.parts;
             entry = selection.entry;
             object = parent.object;
-            staticPose = parent.staticPose;
+            hand = parent.hand;
             frame = parent.frame;
             ResourceLocation layerTexture = parent.texture;
             if (entry.model.source.getResourcePath()
@@ -576,7 +596,7 @@ public final class CemRuntime {
                 if (CemResources.INSTANCE.exists(saddle)) layerTexture = saddle;
             }
             texture = layerTexture;
-            instance = CemClient.instance(object, entry.model);
+            instance = hand ? CemClient.handInstance(object, entry.model) : CemClient.instance(object, entry.model);
             inputs = new HashMap<>(parent.inputs);
             inputs.put("rule_index", (double) selection.rule);
             collect(entry.model.root);
@@ -596,12 +616,6 @@ public final class CemRuntime {
 
         void evaluate() {
             if (entry != null && !evaluated) {
-                if (staticPose) {
-                    instance.staticPose(pose -> binding.pose(entry.model, pose, object, parts));
-                    binding.playerLayers(instance, true);
-                    evaluated = true;
-                    return;
-                }
                 instance.evaluate(CemClient.frame(), inputs, pose -> {
                     binding.pose(entry.model, pose, object, parts);
                     for (Map.Entry<String, float[]> captured : collected.entrySet()) {

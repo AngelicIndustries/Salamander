@@ -55,6 +55,15 @@ public final class CemClient {
         return state.instances.computeIfAbsent(model, ignored -> model.newInstance(state.variables));
     }
 
+    /**
+     * The first-person hand's own instance of the entity's model. It evaluates with {@code is_first_person_hand} in the
+     * same frame as the body may without it, and shares the entity's variables, as in EMF.
+     */
+    public static CemModel.Instance handInstance(Object entity, CemModel model) {
+        State state = STATES.computeIfAbsent(entity, ignored -> new State());
+        return state.hands.computeIfAbsent(model, ignored -> model.newInstance(state.variables));
+    }
+
     public static long frame() {
         return frame;
     }
@@ -208,7 +217,7 @@ public final class CemClient {
         return previous + (current - previous) * partialTicks;
     }
 
-    private static float interpolateAngle(float previous, float current, float partialTicks) {
+    static float interpolateAngle(float previous, float current, float partialTicks) {
         return previous + MathHelper.wrapAngleTo180_float(current - previous) * partialTicks;
     }
 
@@ -216,5 +225,6 @@ public final class CemClient {
 
         final Map<String, Double> variables = new HashMap<>();
         final Map<CemModel, CemModel.Instance> instances = new java.util.IdentityHashMap<>();
+        final Map<CemModel, CemModel.Instance> hands = new java.util.IdentityHashMap<>();
     }
 }
