@@ -38,16 +38,19 @@ final class WawelAuthBridge {
     static boolean submit(WawelAuthOverlays.Overlay overlay) {
         LayerDraw draw = SkinLayers.current();
         if (draw == null || !draw.claimed(SkinPart.valueOf(overlay.part))) return false;
-        if (overlay.segment == null) overlay.segment = LayerSegment.box(
-            SkinPart.valueOf(overlay.part),
-            overlay.x,
-            overlay.y,
-            overlay.z,
-            overlay.width,
-            overlay.height,
-            overlay.depth,
-            overlay.u,
-            overlay.v);
+        if (overlay.segment == null) {
+            LayerSegment segment = LayerSegment.box(
+                SkinPart.valueOf(overlay.part),
+                overlay.x,
+                overlay.y,
+                overlay.z,
+                overlay.width,
+                overlay.height,
+                overlay.depth,
+                overlay.u,
+                overlay.v);
+            overlay.segment = overlay.whole() ? segment : segment.rows(overlay.rowStart, overlay.rowEnd);
+        }
         draw.submit((LayerSegment) overlay.segment);
         return true;
     }

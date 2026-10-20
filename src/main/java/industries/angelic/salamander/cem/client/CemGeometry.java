@@ -26,11 +26,12 @@ public final class CemGeometry {
 
     public CemGeometry(CemModel model) {
         this.model = model;
+        Map<CemModel.Box, WawelAuthOverlays.Overlay> matches = WawelAuthOverlays.matchAll(model);
         for (CemModel.Node node : model.nodes) {
             List<float[]> part = new ArrayList<>();
             List<OverlayBox> pieces = new ArrayList<>();
             for (CemModel.Box box : node.boxes) {
-                WawelAuthOverlays.Overlay overlay = WawelAuthOverlays.match(box);
+                WawelAuthOverlays.Overlay overlay = matches.get(box);
                 List<float[]> target = part;
                 if (overlay != null) {
                     OverlayBox piece = new OverlayBox(overlay);

@@ -74,6 +74,76 @@ public class WawelAuthOverlaysTest {
                     + "\"textureOffset\":[16,16]}]}"));
     }
 
+    @Test
+    public void boxUvSlicesOfASplitSleeve() throws Exception {
+        // Upper sleeve on the arm's pivot, lower sleeve on an elbow child: the lower box's UV moves down six rows.
+        List<WawelAuthOverlays.Overlay> slices = all(
+            "{\"part\":\"right_sleeve\",\"id\":\"right_sleeve\",\"boxes\":[{\"coordinates\":[-3,-2,-2,4,6,4],"
+                + "\"textureOffset\":[40,32],\"sizeAdd\":0.25}],\"submodels\":[{\"id\":\"elbow\",\"translate\":[0,4,0],"
+                + "\"boxes\":[{\"coordinates\":[-3,0,-2,4,6,4],\"textureOffset\":[40,38],\"sizeAdd\":0.25}]}]}");
+        assertEquals(2, slices.size());
+        assertOverlay(slices.get(0), "RIGHT_SLEEVE", -3, -2, -2, 4, 12, 4, 40, 32);
+        assertRows(slices.get(0), 0, 6);
+        // The lower slice's whole box would start six rows above it, in the elbow's frame.
+        assertOverlay(slices.get(1), "RIGHT_SLEEVE", -3, -6, -2, 4, 12, 4, 40, 32);
+        assertRows(slices.get(1), 6, 12);
+    }
+
+    @Test
+    public void perFaceSlicesOfASplitSleeve() throws Exception {
+        // Fresh Moves' slim sleeve cut at the elbow: pre-inflated halves, sides cut to rows 0..6 and 6..12, the real
+        // top and bottom on their ends and whatever at the cut.
+        String upper = "{\"coordinates\":[3.75,17.75,-2.25,3.5,6.5,4.5],\"uvNorth\":[44,36,47,42],"
+            + "\"uvEast\":[40,36,44,42],\"uvSouth\":[51,36,54,42],\"uvWest\":[47,36,51,42],\"uvUp\":[47,36,44,32],"
+            + "\"uvDown\":[44,42,47,43]}";
+        String lower = "{\"coordinates\":[3.75,11.75,-2.25,3.5,6.5,4.5],\"uvNorth\":[44,42,47,48],"
+            + "\"uvEast\":[40,42,44,48],\"uvSouth\":[51,42,54,48],\"uvWest\":[47,42,51,48],\"uvDown\":[50,32,47,36]}";
+        List<WawelAuthOverlays.Overlay> slices = all(
+            "{\"part\":\"right_sleeve\",\"id\":\"right_sleeve\",\"invertAxis\":\"xy\",\"translate\":[-5,-22,0],"
+                + "\"boxes\":["
+                + upper
+                + ","
+                + lower
+                + "]}");
+        assertEquals(2, slices.size());
+        // Both halves describe the same vanilla sleeve as the uncut Fresh Moves box.
+        assertOverlay(slices.get(0), "RIGHT_SLEEVE", -7, -24, -2, 3, 12, 4, 40, 32);
+        assertRows(slices.get(0), 0, 6);
+        assertOverlay(slices.get(1), "RIGHT_SLEEVE", -7, -24, -2, 3, 12, 4, 40, 32);
+        assertRows(slices.get(1), 6, 12);
+    }
+
+    @Test
+    public void overlappingSlicesCoverTheLimb() throws Exception {
+        List<WawelAuthOverlays.Overlay> slices = all(
+            "{\"part\":\"right_pants\",\"id\":\"right_pants\",\"boxes\":[{\"coordinates\":[-2,0,-2,4,7,4],"
+                + "\"textureOffset\":[0,32],\"sizeAdd\":0.25},{\"coordinates\":[-2,5,-2,4,7,4],"
+                + "\"textureOffset\":[0,37],\"sizeAdd\":0.25}]}");
+        assertRows(slices.get(0), 0, 7);
+        assertRows(slices.get(1), 5, 12);
+    }
+
+    @Test
+    public void slicesThatLeaveRowsOutStayWithThePack() throws Exception {
+        // A shortened sleeve, and halves with a gap: Wawel Auth would leave an open end.
+        List<WawelAuthOverlays.Overlay> stubby = all(
+            "{\"part\":\"right_sleeve\",\"id\":\"right_sleeve\",\"boxes\":[{\"coordinates\":[-3,-2,-2,4,8,4],"
+                + "\"textureOffset\":[40,32],\"sizeAdd\":0.25}]}");
+        assertNull(stubby.get(0));
+        List<WawelAuthOverlays.Overlay> gap = all(
+            "{\"part\":\"right_sleeve\",\"id\":\"right_sleeve\",\"boxes\":[{\"coordinates\":[-3,-2,-2,4,5,4],"
+                + "\"textureOffset\":[40,32],\"sizeAdd\":0.25},{\"coordinates\":[-3,4,-2,4,6,4],"
+                + "\"textureOffset\":[40,38],\"sizeAdd\":0.25}]}");
+        assertNull(gap.get(0));
+        assertNull(gap.get(1));
+    }
+
+    private static void assertRows(WawelAuthOverlays.Overlay overlay, int start, int end) {
+        assertNotNull(overlay);
+        assertEquals(start, overlay.rowStart);
+        assertEquals(end, overlay.rowEnd);
+    }
+
     private static void assertOverlay(WawelAuthOverlays.Overlay overlay, String part, float x, float y, float z,
         int width, int height, int depth, int u, int v) {
         assertNotNull(overlay);
@@ -90,16 +160,24 @@ public class WawelAuthOverlaysTest {
 
     /** The match for the single box in a player model holding just this entry. */
     private static WawelAuthOverlays.Overlay only(String entry) throws Exception {
+        List<WawelAuthOverlays.Overlay> matches = all(entry);
+        assertEquals(1, matches.size());
+        return matches.get(0);
+    }
+
+    /** The match for each box, in model order, in a player model holding just this entry; null for no match. */
+    private static List<WawelAuthOverlays.Overlay> all(String entry) throws Exception {
         Map<String, float[]> pivots = new LinkedHashMap<>();
-        for (String part : new String[] { "headwear", "jacket", "right_sleeve" }) pivots.put(part, new float[3]);
+        for (String part : new String[] { "headwear", "jacket", "right_sleeve", "right_pants" })
+            pivots.put(part, new float[3]);
         String document = "{\"textureSize\":[64,64],\"models\":[" + entry + "]}";
         CemModel model = new CemLoader(location -> {
             if (!location.equals(SOURCE)) throw new FileNotFoundException(location.toString());
             return new StringReader(document);
         }).load(SOURCE, pivots, java.util.Collections.emptyMap(), 64, 64);
-        List<CemModel.Box> boxes = new ArrayList<>();
-        for (CemModel.Node node : model.nodes) boxes.addAll(node.boxes);
-        assertEquals(1, boxes.size());
-        return WawelAuthOverlays.match(boxes.get(0));
+        Map<CemModel.Box, WawelAuthOverlays.Overlay> matches = WawelAuthOverlays.matchAll(model);
+        List<WawelAuthOverlays.Overlay> result = new ArrayList<>();
+        for (CemModel.Node node : model.nodes) for (CemModel.Box box : node.boxes) result.add(matches.get(box));
+        return result;
     }
 }
