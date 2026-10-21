@@ -119,6 +119,8 @@ public final class CemModel {
     private final List<Assignment> program = new ArrayList<>();
     private final double[] defaults;
     private final boolean[] animated;
+    /** By node index: whether the node hangs from {@link #root}. A replaced parent drops some of its children. */
+    private final boolean[] reachable;
 
     public CemModel(ResourceLocation source, ResourceLocation texture, float shadowSize, Node root, List<Node> nodes,
         Map<String, Node> originalParts, List<Animation> animations) {
@@ -131,6 +133,8 @@ public final class CemModel {
         this.defaults = new double[nodes.size() * STRIDE];
         this.animated = new boolean[defaults.length];
         for (Node node : nodes) System.arraycopy(node.transform, 0, defaults, node.index * STRIDE, STRIDE);
+        this.reachable = new boolean[nodes.size()];
+        mark(root);
         for (Animation animation : animations) {
             Access target = access(animation.target, animation.owner, animation.part, true);
             CemExpression expression = CemExpressionParser
@@ -258,6 +262,19 @@ public final class CemModel {
             }
             lastFrame = frame;
         }
+    }
+
+    private void mark(Node node) {
+        if (node.index >= 0 && node.index < reachable.length) reachable[node.index] = true;
+        for (Node child : node.children) mark(child);
+    }
+
+    /** Whether {@code node} is one of this model's and hangs from its root. */
+    public boolean reaches(Node node) {
+        return node != null && node.index >= 0
+            && node.index < reachable.length
+            && reachable[node.index]
+            && nodes.get(node.index) == node;
     }
 
     public static final class Node {

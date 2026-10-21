@@ -45,7 +45,7 @@ public final class CemRuntime {
     public static boolean collectDragonPose(boolean collect) {
         if (draw == null || draw.entry == null || !(draw.binding.nativeModel instanceof ModelDragon)) return false;
         draw.collecting = collect;
-        draw.calls.clear();
+        draw.callStamp = CemPartCalls.nextStamp();
         return true;
     }
 
@@ -358,8 +358,7 @@ public final class CemRuntime {
         try {
             java.util.List<String> occurrences = draw.binding.occurrences.get(part);
             if (occurrences == null) return false;
-            int occurrence = draw.calls.getOrDefault(part, 0);
-            draw.calls.put(part, occurrence + 1);
+            int occurrence = ((CemPartCalls) part).salamander$nextCall(draw.callStamp);
             String name = occurrences.get(Math.min(occurrence, occurrences.size() - 1));
             if (draw.collecting) {
                 draw.collectPose(name);
@@ -502,7 +501,7 @@ public final class CemRuntime {
             if (group != null && !group.vanillaGeometry) return true;
         }
         if (node == null) return false;
-        if (!selected.reachable.contains(node) || selected.instance.pose[9] == 0) return true;
+        if (!selected.entry.model.reaches(node) || selected.instance.pose[9] == 0) return true;
         selected.binding.refresh(node, selected.instance, selected.object, selected.parts);
         rendering = true;
         selected.entry.geometry.renderNativePart(
@@ -588,8 +587,8 @@ public final class CemRuntime {
         final boolean hand;
         final Map<String, Draw> layers = new HashMap<>();
         final CemRenderFrame frame;
-        final Set<CemModel.Node> reachable = Collections.newSetFromMap(new IdentityHashMap<>());
-        final Map<ModelRenderer, Integer> calls = new IdentityHashMap<>();
+        /** Counts this draw's calls on each part (see {@link CemPartCalls}); a new stamp starts them over. */
+        int callStamp = CemPartCalls.nextStamp();
         boolean evaluated, extras, collecting;
         final Map<String, float[]> collected = new HashMap<>();
 
@@ -622,7 +621,6 @@ public final class CemRuntime {
             if (object instanceof net.minecraft.entity.EntityLivingBase && !CemItemContext.hand()
                 && (nativeModel instanceof ModelSkeletonHead || type.endsWith(".ModelHead")))
                 inputs.put("is_on_head", 1d);
-            if (entry != null) collect(entry.model.root);
             if (entry != null && object instanceof Entity) {
                 net.minecraft.client.renderer.entity.Render renderer = net.minecraft.client.renderer.entity.RenderManager.instance
                     .getEntityRenderObject((Entity) object);
@@ -650,12 +648,6 @@ public final class CemRuntime {
             instance = hand ? CemClient.handInstance(object, entry.model) : CemClient.instance(object, entry.model);
             inputs = new HashMap<>(parent.inputs);
             inputs.put("rule_index", (double) selection.rule);
-            collect(entry.model.root);
-        }
-
-        private void collect(CemModel.Node node) {
-            reachable.add(node);
-            for (CemModel.Node child : node.children) collect(child);
         }
 
         void collectPose(String name) {

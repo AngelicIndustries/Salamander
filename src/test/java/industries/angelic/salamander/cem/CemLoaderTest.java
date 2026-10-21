@@ -52,6 +52,23 @@ public class CemLoaderTest {
     }
 
     @Test
+    public void reachableNodesAreTheOnesUnderTheRoot() throws Exception {
+        Map<ResourceLocation, String> files = new HashMap<>();
+        files.put(
+            SOURCE,
+            "{\"models\":[{\"part\":\"head\",\"id\":\"face\"},{\"part\":\"head\",\"id\":\"skull\",\"attach\":true}]}");
+        CemModel model = load(files);
+        for (CemModel.Node node : model.nodes) assertEquals(node.id, under(model.root, node), model.reaches(node));
+        assertFalse(model.reaches(null));
+    }
+
+    private static boolean under(CemModel.Node from, CemModel.Node node) {
+        if (from == node) return true;
+        for (CemModel.Node child : from.children) if (under(child, node)) return true;
+        return false;
+    }
+
+    @Test
     public void replacementsRetainEveryCustomSiblingIncludingEarlierAttachments() throws Exception {
         Map<ResourceLocation, String> files = new HashMap<>();
         files.put(
