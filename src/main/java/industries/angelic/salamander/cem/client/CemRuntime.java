@@ -144,7 +144,8 @@ public final class CemRuntime {
         Draw previous = draw;
         if (previous != null && previous.binding.nativeModel == model) return previous;
         draw = null;
-        if (!CemConfig.enabled || !(model instanceof CemModelParts)) return previous;
+        if (!CemConfig.enabled || !CemResources.INSTANCE.hasModels() || !(model instanceof CemModelParts))
+            return previous;
         Object object = entity != null ? entity : subject == null ? model : subject.object;
         CemBinding binding = binding(model, object);
         CemResources.Selection selected = CemResources.INSTANCE
@@ -164,7 +165,7 @@ public final class CemRuntime {
                 texture);
             if (selected != null) draw.inputs.put("rule_index", (double) selected.rule);
             if (subject != null) {
-                subject.draws.put(model, draw);
+                subject.draw(model, draw);
                 if (subject.primary == null && entry != null) {
                     subject.primary = entry;
                     subject.primaryDraw = draw;
@@ -212,7 +213,9 @@ public final class CemRuntime {
     /** Arm renderers can hide wear under armor without hiding the base hand or allowing WA to add the sleeve back. */
     public static boolean firstPersonArm(net.minecraft.client.model.ModelBiped model,
         net.minecraft.entity.player.EntityPlayer player, float scale, boolean sleeve) {
-        if (!CemConfig.enabled || !(model instanceof CemModelParts) || !CemPlayers.model(player, model)) return false;
+        if (!CemConfig.enabled || !CemResources.INSTANCE.hasModels()
+            || !(model instanceof CemModelParts)
+            || !CemPlayers.model(player, model)) return false;
         float partial = ((industries.angelic.salamander.mixins.early.minecraft.client.AccessorMinecraft) net.minecraft.client.Minecraft
             .getMinecraft()).salamander$getTimer().renderPartialTicks;
         Subject previousSubject = enter(player, partial);
@@ -330,11 +333,11 @@ public final class CemRuntime {
     }
 
     public static boolean part(ModelBase model, ModelRenderer part, float scale, boolean rotationOrder) {
-        if (rendering) return false;
+        if (rendering || !CemResources.INSTANCE.hasModels()) return false;
         if (armorPart(model, part, scale, rotationOrder)) return true;
         if (draw == null && subject != null) {
             Draw previous = draw;
-            Draw cached = subject.draws.get(model);
+            Draw cached = subject.draw(model);
             if (cached == null && subject.object instanceof net.minecraft.tileentity.TileEntity) {
                 begin(model, null, 0, 0, 0, 0, 0);
                 cached = draw;
@@ -407,9 +410,8 @@ public final class CemRuntime {
             || subject.primaryDraw == null
             || texture == null) return false;
         String path = texture.getResourcePath();
-        if (path.startsWith("textures/models/armor/")) subject.armorModels.add(model);
-        else if (!path.equals("textures/misc/enchanted_item_glint.png") || !subject.armorModels.contains(model))
-            return false;
+        if (path.startsWith("textures/models/armor/")) subject.armor(model);
+        else if (!path.equals("textures/misc/enchanted_item_glint.png") || !subject.hasArmor(model)) return false;
         Draw body = subject.primaryDraw;
         if (!(body.binding.nativeModel instanceof net.minecraft.client.model.ModelBiped)
             || !(model instanceof CemModelParts)) return false;
@@ -534,7 +536,8 @@ public final class CemRuntime {
     }
 
     public static boolean post(ModelBase model, ModelRenderer part, float scale) {
-        Draw current = subject == null ? null : subject.draws.get(model);
+        if (!CemResources.INSTANCE.hasModels()) return false;
+        Draw current = subject == null ? null : subject.draw(model);
         if (rendering || current == null || current.entry == null) return false;
         try {
             current.evaluate();
@@ -560,8 +563,8 @@ public final class CemRuntime {
         final Object object;
         final float partialTicks;
         final Subject parent;
-        final Map<ModelBase, Draw> draws = new IdentityHashMap<>();
-        final Set<ModelBase> armorModels = Collections.newSetFromMap(new IdentityHashMap<>());
+        Map<ModelBase, Draw> draws;
+        Set<ModelBase> armorModels;
         CemResources.Entry primary;
         Draw primaryDraw;
 
@@ -569,6 +572,24 @@ public final class CemRuntime {
             this.object = object;
             this.partialTicks = partialTicks;
             this.parent = parent;
+        }
+
+        Draw draw(ModelBase model) {
+            return draws == null ? null : draws.get(model);
+        }
+
+        void draw(ModelBase model, Draw draw) {
+            if (draws == null) draws = new IdentityHashMap<>();
+            draws.put(model, draw);
+        }
+
+        void armor(ModelBase model) {
+            if (armorModels == null) armorModels = Collections.newSetFromMap(new IdentityHashMap<>());
+            armorModels.add(model);
+        }
+
+        boolean hasArmor(ModelBase model) {
+            return armorModels != null && armorModels.contains(model);
         }
     }
 

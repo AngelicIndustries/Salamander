@@ -39,8 +39,8 @@ public final class CemChestHalves {
     }
 
     public static boolean render(ModelChest chest) {
-        if (!(chest instanceof ModelLargeChest) || !industries.angelic.salamander.config.CemConfig.enabled)
-            return false;
+        if (!(chest instanceof ModelLargeChest) || !industries.angelic.salamander.config.CemConfig.enabled
+            || !CemResources.INSTANCE.hasModels()) return false;
         String target = CemTargets.target(CemRuntime.subject());
         if (target == null || !CemResources.INSTANCE.hasTargets(Arrays.asList(target + "_left", target + "_right")))
             return false;

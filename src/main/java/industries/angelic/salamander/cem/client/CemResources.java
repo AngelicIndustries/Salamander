@@ -1,5 +1,6 @@
 package industries.angelic.salamander.cem.client;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -11,9 +12,14 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
+import net.minecraft.client.resources.AbstractResourcePack;
+import net.minecraft.client.resources.DefaultResourcePack;
 import net.minecraft.client.resources.IResourceManager;
 import net.minecraft.client.resources.IResourceManagerReloadListener;
+import net.minecraft.client.resources.IResourcePack;
 import net.minecraft.util.ResourceLocation;
 
 import industries.angelic.salamander.Salamander;
@@ -21,6 +27,7 @@ import industries.angelic.salamander.cem.loading.CemLoader;
 import industries.angelic.salamander.cem.loading.CemModelPaths;
 import industries.angelic.salamander.cem.model.CemModel;
 import industries.angelic.salamander.config.CemConfig;
+import industries.angelic.salamander.mixins.early.minecraft.client.resources.AccessorAbstractResourcePack;
 
 /** Atomic client reload snapshot. Registered adapters enumerate their resources without scanning unrelated packs. */
 public final class CemResources implements IResourceManagerReloadListener {
@@ -47,8 +54,46 @@ public final class CemResources implements IResourceManagerReloadListener {
     private final Map<ResourceLocation, ResourceLocation> textures = new HashMap<>();
     private final Map<ResourceLocation, Variants> variants = new HashMap<>();
     private final Set<CemModel> failed = Collections.newSetFromMap(new IdentityHashMap<>());
+    private boolean models = true;
 
     private CemResources() {}
+
+    public boolean hasModels() {
+        return models;
+    }
+
+    private static boolean scanModels() {
+        for (IResourcePack pack : packs) if (hasModels(pack)) return true;
+        return false;
+    }
+
+    private static boolean hasModels(IResourcePack pack) {
+        if (pack instanceof DefaultResourcePack) return false;
+        if (!(pack instanceof AbstractResourcePack)) return true;
+        Set<String> domains = pack.getResourceDomains();
+        if (domains != null && !domains.contains("minecraft")) return false;
+        File root = ((AccessorAbstractResourcePack) pack).salamander$getResourcePackFile();
+        if (root == null) return true;
+        if (root.isDirectory()) return hasEntries(new File(root, "assets/minecraft/optifine/cem"))
+            || hasEntries(new File(root, "assets/minecraft/emf/cem"));
+        try (ZipFile zip = new ZipFile(root)) {
+            java.util.Enumeration<? extends ZipEntry> entries = zip.entries();
+            while (entries.hasMoreElements()) {
+                String name = entries.nextElement()
+                    .getName();
+                if (name.startsWith("assets/minecraft/optifine/cem/") || name.startsWith("assets/minecraft/emf/cem/"))
+                    return true;
+            }
+            return false;
+        } catch (IOException exception) {
+            return true;
+        }
+    }
+
+    private static boolean hasEntries(File directory) {
+        String[] names = directory.list();
+        return names != null && names.length > 0;
+    }
 
     public boolean hasTargets(java.util.List<String> names) {
         for (String name : names) if (modelPath(name) != null) return true;
@@ -257,6 +302,7 @@ public final class CemResources implements IResourceManagerReloadListener {
             .deleteTexture(generated);
         generatedTextures.clear();
         this.manager = manager;
+        models = scanModels();
         suffix = emissiveSuffix(manager);
         definitions.clear();
         modelPaths.clear();

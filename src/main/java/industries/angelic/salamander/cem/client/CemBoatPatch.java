@@ -31,9 +31,9 @@ public final class CemBoatPatch extends ModelBase implements CemModelParts {
     }
 
     public static void render(Entity entity, float scale) {
+        if (!industries.angelic.salamander.config.CemConfig.enabled || !CemResources.INSTANCE.hasModels()) return;
         List<String> targets = Arrays.asList("oak_boat_patch", "boat_patch");
-        if (!industries.angelic.salamander.config.CemConfig.enabled || !CemResources.INSTANCE.hasTargets(targets))
-            return;
+        if (!CemResources.INSTANCE.hasTargets(targets)) return;
         CemRuntime.Draw previous = CemRuntime.beginNamed(INSTANCE, entity, 0, 0, entity.ticksExisted, 0, 0, targets);
         GL11.glPushAttrib(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
         try {

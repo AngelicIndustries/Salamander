@@ -24,8 +24,8 @@ public final class CemChests {
     }
 
     public static boolean render(ModelChest nativeModel) {
-        if (nativeModel instanceof ModelLargeChest || !industries.angelic.salamander.config.CemConfig.enabled)
-            return false;
+        if (nativeModel instanceof ModelLargeChest || !industries.angelic.salamander.config.CemConfig.enabled
+            || !CemResources.INSTANCE.hasModels()) return false;
         String target = CemTargets.target(CemRuntime.subject());
         if (target == null
             || !(target.equals("chest") || target.equals("trapped_chest") || target.equals("ender_chest"))
