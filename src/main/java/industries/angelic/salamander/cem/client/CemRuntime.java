@@ -148,8 +148,10 @@ public final class CemRuntime {
             return previous;
         Object object = entity != null ? entity : subject == null ? model : subject.object;
         CemBinding binding = binding(model, object);
-        CemResources.Selection selected = CemResources.INSTANCE
-            .select(candidates == null ? CemTargets.candidates(object, model, texture) : candidates, binding, object);
+        CemResources.Selection selected = CemResources.INSTANCE.select(
+            candidates == null ? CemTargets.candidates(binding, object, model, texture) : candidates,
+            binding,
+            object);
         CemResources.Entry entry = selected == null ? null : selected.entry;
         if (entry != null || CemResources.INSTANCE.hasTargets(CemTargets.extraCandidates(object, model))) {
             draw = new Draw(

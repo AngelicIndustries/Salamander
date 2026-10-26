@@ -112,16 +112,24 @@ public final class CemResources implements IResourceManagerReloadListener {
             ResourceLocation resource = modelPath(name);
             if (resource == null) continue;
             Variants choices = variants.computeIfAbsent(resource, this::variants);
-            industries.angelic.salamander.cem.loading.CemRules.Selection choice = choices
-                .select(CemRuleFacts.get(subject));
-            ResourceLocation selected = choice.model == 1 ? resource : variant(resource, choice.model);
+            industries.angelic.salamander.cem.loading.CemRules.Selection choice = choices.select(subject);
+            ResourceLocation selected = choice.model == 1 ? resource : choices.resource(choice.model);
             Entry entry = entry(exists(selected) ? selected : resource, binding);
-            if (entry != null) return new Selection(entry, choice.rule);
+            if (entry != null) return entry.selection(choice.rule);
         }
         return null;
     }
 
     private Entry entry(ResourceLocation resource, CemBinding binding) {
+        Entry entry = binding.entries.get(resource);
+        if (entry == null && !binding.entries.containsKey(resource)) {
+            entry = definition(resource, binding);
+            binding.entries.put(resource, entry);
+        }
+        return entry != null && !failed.contains(entry.model) ? entry : null;
+    }
+
+    private Entry definition(ResourceLocation resource, CemBinding binding) {
         String key = resource + "|"
             + binding.nativeModel.getClass()
                 .getName()
@@ -157,8 +165,7 @@ public final class CemResources implements IResourceManagerReloadListener {
             }
             definitions.put(key, entry);
         }
-        Entry entry = definitions.get(key);
-        return entry != null && !failed.contains(entry.model) ? entry : null;
+        return definitions.get(key);
     }
 
     private Variants variants(ResourceLocation resource) {
@@ -170,10 +177,13 @@ public final class CemResources implements IResourceManagerReloadListener {
             .getInputStream()) {
                 Properties values = new Properties();
                 values.load(stream);
-                return new Variants(new industries.angelic.salamander.cem.loading.CemRules(values), new int[] { 1 });
+                return new Variants(
+                    resource,
+                    new industries.angelic.salamander.cem.loading.CemRules(values),
+                    new int[] { 1 });
             } catch (Exception exception) {
                 Salamander.LOG.warn("Invalid CEM rules '{}'; using base model", properties, exception);
-                return new Variants(null, new int[] { 1 });
+                return new Variants(resource, null, new int[] { 1 });
             }
         java.util.List<Integer> indices = new java.util.ArrayList<>();
         indices.add(1);
@@ -184,6 +194,7 @@ public final class CemResources implements IResourceManagerReloadListener {
             } else missing++;
         }
         return new Variants(
+            resource,
             null,
             indices.stream()
                 .mapToInt(Integer::intValue)
@@ -331,19 +342,34 @@ public final class CemResources implements IResourceManagerReloadListener {
 
     private static final class Variants {
 
+        final ResourceLocation base;
         final industries.angelic.salamander.cem.loading.CemRules rules;
-        final int[] models;
+        final industries.angelic.salamander.cem.loading.CemRules.Selection[] selections;
+        private ResourceLocation[] resources = new ResourceLocation[0];
 
-        Variants(industries.angelic.salamander.cem.loading.CemRules rules, int[] models) {
+        Variants(ResourceLocation base, industries.angelic.salamander.cem.loading.CemRules rules, int[] models) {
+            this.base = base;
             this.rules = rules;
-            this.models = models;
+            selections = new industries.angelic.salamander.cem.loading.CemRules.Selection[models.length];
+            for (int i = 0; i < models.length; i++)
+                selections[i] = new industries.angelic.salamander.cem.loading.CemRules.Selection(models[i], 0);
         }
 
-        industries.angelic.salamander.cem.loading.CemRules.Selection select(CemRuleFacts facts) {
-            return rules != null ? rules.select(facts)
-                : new industries.angelic.salamander.cem.loading.CemRules.Selection(
-                    models[(int) Math.floorMod(facts.seed(), models.length)],
-                    0);
+        ResourceLocation resource(int model) {
+            if (model < 0) return variant(base, model);
+            if (model >= resources.length) resources = java.util.Arrays.copyOf(resources, model + 1);
+            ResourceLocation resource = resources[model];
+            if (resource == null) resources[model] = resource = variant(base, model);
+            return resource;
+        }
+
+        industries.angelic.salamander.cem.loading.CemRules.Selection select(Object subject) {
+            if (rules != null) return rules.select(CemRuleFacts.get(subject));
+            return selections.length == 1 ? selections[0]
+                : selections[(int) Math.floorMod(
+                    CemRuleFacts.get(subject)
+                        .seed(),
+                    selections.length)];
         }
     }
 
@@ -385,6 +411,14 @@ public final class CemResources implements IResourceManagerReloadListener {
             this.texture = texture;
             this.emissive = emissive;
             this.geometry = new CemGeometry(model);
+        }
+
+        private Selection base;
+
+        Selection selection(int rule) {
+            if (rule != 0) return new Selection(this, rule);
+            if (base == null) base = new Selection(this, 0);
+            return base;
         }
     }
 }

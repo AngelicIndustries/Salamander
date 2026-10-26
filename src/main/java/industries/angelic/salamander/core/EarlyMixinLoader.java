@@ -5,11 +5,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.gtnewhorizon.gtnhlib.config.ConfigException;
+import com.gtnewhorizon.gtnhlib.config.ConfigurationManager;
 import com.gtnewhorizon.gtnhmixins.IEarlyMixinLoader;
 
 import cpw.mods.fml.relauncher.FMLLaunchHandler;
 import cpw.mods.fml.relauncher.IFMLLoadingPlugin;
 import industries.angelic.salamander.Salamander;
+import industries.angelic.salamander.config.CemConfig;
 
 @SuppressWarnings("unused")
 @IFMLLoadingPlugin.MCVersion("1.7.10")
@@ -23,6 +26,20 @@ public class EarlyMixinLoader implements IEarlyMixinLoader, IFMLLoadingPlugin {
     @Override
     public List<String> getMixins(Set<String> loadedCoreMods) {
         List<String> mixins = new ArrayList<>();
+        try {
+            ConfigurationManager.registerConfig(CemConfig.class);
+        } catch (ConfigException exception) {
+            throw new IllegalStateException("Unable to register Salamander configuration", exception);
+        }
+        if (!CemConfig.hooks) {
+            if (FMLLaunchHandler.side()
+                .isClient()) {
+                mixins.add("minecraft.client.AccessorMinecraft");
+                mixins.add("minecraft.client.resources.AccessorAbstractResourcePack");
+                mixins.add("minecraft.client.resources.MixinPackMetadataSectionSerializer");
+            }
+            return mixins;
+        }
         mixins.add("minecraft.MixinEntityMobCem");
 
         if (FMLLaunchHandler.side()

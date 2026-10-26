@@ -8,6 +8,11 @@ import industries.angelic.salamander.Salamander;
 @Config.LangKeyPattern(pattern = "%mod.config.%cat.%field")
 public final class CemConfig {
 
+    @Config.Comment("Install Salamander's custom entity model hooks. When false, no CEM code runs: resource-pack entity models, player models, capes and EFR elytra, and CEM random and emissive textures are ignored.")
+    @Config.DefaultBoolean(true)
+    @Config.RequiresMcRestart
+    public static boolean hooks = true;
+
     @Config.Comment("Load custom entity models for supported vanilla and Et Futurum Requiem targets from resource packs. Reload resources after changing.")
     @Config.DefaultBoolean(true)
     public static boolean enabled = true;

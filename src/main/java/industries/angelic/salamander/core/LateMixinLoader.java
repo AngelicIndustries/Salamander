@@ -24,7 +24,7 @@ public class LateMixinLoader implements ILateMixinLoader {
     public List<String> getMixins(Set<String> loadedMods) {
         java.util.List<String> mixins = new java.util.ArrayList<>();
         if (cpw.mods.fml.relauncher.FMLLaunchHandler.side()
-            .isClient() && loadedMods.contains("etfuturum")) {
+            .isClient() && industries.angelic.salamander.config.CemConfig.hooks && loadedMods.contains("etfuturum")) {
             mixins.add("etfuturum.MixinModelFoxCem");
             mixins.add("etfuturum.MixinModelElytraCem");
             mixins.add("etfuturum.MixinBrownMooshroomRendererCem");

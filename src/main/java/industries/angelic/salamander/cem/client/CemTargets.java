@@ -89,7 +89,15 @@ public final class CemTargets {
         }
     }
 
+    private static final Map<String, List<String>> SADDLES = new java.util.HashMap<>();
+    private static final List<String> BANNER = Collections
+        .unmodifiableList(Arrays.asList("banner_base", "banner_flag"));
+
     private CemTargets() {}
+
+    private static List<String> saddles(String target) {
+        return Collections.unmodifiableList(Arrays.asList(target + "_baby_saddle", target + "_saddle"));
+    }
 
     public static void register(String className, String target) {
         register(className, o -> target);
@@ -108,7 +116,29 @@ public final class CemTargets {
     }
 
     public static List<String> candidates(Object subject, ModelBase model, ResourceLocation texture) {
+        return candidates(subject, target(subject), model, texture);
+    }
+
+    static List<String> candidates(CemBinding binding, Object subject, ModelBase model, ResourceLocation texture) {
         String target = target(subject);
+        if (CemPlayers.model(subject, model)) return candidates(subject, target, model, texture);
+        Class<?> type = subject == null ? null : subject.getClass();
+        int flags = (subject instanceof EntityLivingBase && ((EntityLivingBase) subject).isChild() ? 1 : 0)
+            | (model instanceof ModelSign && ((ModelSign) model).signStick.showModel ? 2 : 0);
+        if (binding.candidates != null && binding.candidateType == type
+            && binding.candidateFlags == flags
+            && java.util.Objects.equals(binding.candidateTarget, target)
+            && java.util.Objects.equals(binding.candidateTexture, texture)) return binding.candidates;
+        List<String> result = candidates(subject, target, model, texture);
+        binding.candidates = result;
+        binding.candidateType = type;
+        binding.candidateFlags = flags;
+        binding.candidateTarget = target;
+        binding.candidateTexture = texture;
+        return result;
+    }
+
+    private static List<String> candidates(Object subject, String target, ModelBase model, ResourceLocation texture) {
         String tex = texture == null ? "" : texture.getResourcePath();
         if (CemPlayers.model(subject, model)) {
             if (!industries.angelic.salamander.config.CemConfig.playerModels) return Collections.emptyList();
@@ -184,12 +214,11 @@ public final class CemTargets {
     public static List<String> extraCandidates(Object subject, ModelBase model) {
         if (model instanceof ModelHorse) {
             String target = target(subject);
-            return target == null ? Collections.emptyList()
-                : Arrays.asList(target + "_baby_saddle", target + "_saddle");
+            return target == null ? Collections.emptyList() : SADDLES.computeIfAbsent(target, CemTargets::saddles);
         }
         if (model.getClass()
             .getName()
-            .endsWith(".ModelBanner")) return Arrays.asList("banner_base", "banner_flag");
+            .endsWith(".ModelBanner")) return BANNER;
         return Collections.emptyList();
     }
 

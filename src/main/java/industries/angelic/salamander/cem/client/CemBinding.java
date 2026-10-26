@@ -32,6 +32,12 @@ public final class CemBinding {
     public final Map<String, String> parents = new LinkedHashMap<>();
     public final Map<String, String> groups = new HashMap<>();
     private final Map<String, ModelRenderer> namedParts;
+    final Map<net.minecraft.util.ResourceLocation, CemResources.Entry> entries = new HashMap<>();
+    List<String> candidates;
+    Class<?> candidateType;
+    int candidateFlags;
+    String candidateTarget;
+    net.minecraft.util.ResourceLocation candidateTexture;
 
     public CemBinding(ModelBase model, Map<String, ModelRenderer> named) {
         nativeModel = model;
