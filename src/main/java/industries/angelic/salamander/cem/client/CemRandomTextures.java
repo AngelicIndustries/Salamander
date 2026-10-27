@@ -3,6 +3,8 @@ package industries.angelic.salamander.cem.client;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -78,9 +80,8 @@ public final class CemRandomTextures {
             || VARIANTS.contains(original)
             || CemResources.INSTANCE.isEmissive(original)) return original;
         try {
-            CemTextureSet set;
-            if (SETS.containsKey(original)) set = SETS.get(original);
-            else {
+            CemTextureSet set = SETS.get(original);
+            if (set == null && !SETS.containsKey(original)) {
                 List<ResourceLocation> candidates = new ArrayList<>();
                 candidates.add(original);
                 if (original.getResourceDomain()
@@ -91,16 +92,23 @@ public final class CemRandomTextures {
                 SETS.put(original, set);
             }
             if (set == null) return original;
-            CemRuleFacts current = CemRuleFacts.get(object);
-            State state = STATES.computeIfAbsent(object, ignored -> new State(current));
-            if (state.snapshot != current) {
-                state.snapshot = current;
-                state.facts = state.facts(current);
+            long tick = CemRuleFacts.tick(object);
+            State state = STATES.get(object);
+            if (state == null) {
+                // Capture initial biome/height/blocks at the same first texture bind as before.
+                state = new State(CemRuleFacts.get(object), tick);
+                STATES.put(object, state);
+            } else if (state.tick != tick) {
+                state.tick = tick;
+                state.snapshot = null;
                 state.selections.clear();
             }
             Selected selected = state.selections.get(original);
             if (selected == null) {
-                CemRules.Selection choice = set.select(state.facts, CemRuntime.textureChoice());
+                // Numbered/default textures use only the stable seed or inherited choice.
+                // Preserve per-tick selection invalidation, but do not gather unused world facts.
+                if (set.rules != null && state.snapshot == null) state.snapshot = CemRuleFacts.get(object);
+                CemRules.Selection choice = set.select(state, CemRuntime.textureChoice());
                 selected = new Selected(choice, set.texture(choice));
                 state.selections.put(original, selected);
                 if (!selected.texture.equals(set.base) && choice.model > 1) VARIANTS.add(selected.texture);
@@ -126,49 +134,58 @@ public final class CemRandomTextures {
         return path.startsWith("textures/entity/");
     }
 
-    private static final class State {
+    private static final class State implements CemRules.Facts {
 
-        final Map<String, String> initial = new HashMap<>();
+        final String biome, height, block, blockInside;
+        final List<String> blocks;
         final long seed;
         final Map<ResourceLocation, Selected> selections = new HashMap<>();
+        long tick;
         CemRuleFacts snapshot;
-        CemRules.Facts facts;
 
-        State(CemRuleFacts facts) {
+        State(CemRuleFacts facts, long tick) {
+            this.tick = tick;
+            snapshot = facts;
             seed = facts.seed();
-            for (String key : new String[] { "biomes", "heights", "blocks", "blocksInside" })
-                initial.put(key, facts.value(key));
+            biome = facts.value("biomes");
+            height = facts.value("heights");
+            block = facts.value("blocks");
+            blockInside = facts.value("blocksInside");
+            blocks = block == null
+                ? blockInside == null ? Collections.emptyList() : Collections.singletonList(blockInside)
+                : blockInside == null ? Collections.singletonList(block)
+                    : Collections.unmodifiableList(Arrays.asList(block, blockInside));
         }
 
-        CemRules.Facts facts(CemRuleFacts current) {
-            return new CemRules.Facts() {
+        @Override
+        public String value(String key) {
+            switch (key) {
+                case "biomes":
+                    return biome;
+                case "heights":
+                    return height;
+                case "blocks":
+                    return block;
+                case "blocksInside":
+                    return blockInside;
+                default:
+                    return snapshot.value(key);
+            }
+        }
 
-                @Override
-                public String value(String key) {
-                    return initial.containsKey(key) ? initial.get(key) : current.value(key);
-                }
+        @Override
+        public List<String> values(String key) {
+            return key.equals("blocks") ? blocks : snapshot.values(key);
+        }
 
-                @Override
-                public List<String> values(String key) {
-                    if (key.equals("blocks")) {
-                        List<String> blocks = new ArrayList<>();
-                        if (initial.get("blocks") != null) blocks.add(initial.get("blocks"));
-                        if (initial.get("blocksInside") != null) blocks.add(initial.get("blocksInside"));
-                        return blocks;
-                    }
-                    return current.values(key);
-                }
+        @Override
+        public List<String> nbt(String path, boolean raw) {
+            return snapshot.nbt(path, raw);
+        }
 
-                @Override
-                public List<String> nbt(String path, boolean raw) {
-                    return current.nbt(path, raw);
-                }
-
-                @Override
-                public long seed() {
-                    return seed;
-                }
-            };
+        @Override
+        public long seed() {
+            return seed;
         }
     }
 

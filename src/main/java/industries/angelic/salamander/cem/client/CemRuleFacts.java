@@ -42,17 +42,21 @@ public final class CemRuleFacts implements CemRules.Facts {
     }
 
     public static CemRuleFacts get(Object object) {
-        long tick = object instanceof Entity ? ((Entity) object).ticksExisted
-            : object instanceof TileEntity && ((TileEntity) object).getWorldObj() != null
-                ? ((TileEntity) object).getWorldObj()
-                    .getTotalWorldTime()
-                : CemClient.frame();
+        long tick = tick(object);
         CemRuleFacts facts = CACHE.get(object);
         if (facts == null || facts.tick != tick) {
             facts = new CemRuleFacts(object, tick);
             CACHE.put(object, facts);
         }
         return facts;
+    }
+
+    static long tick(Object object) {
+        return object instanceof Entity ? ((Entity) object).ticksExisted
+            : object instanceof TileEntity && ((TileEntity) object).getWorldObj() != null
+                ? ((TileEntity) object).getWorldObj()
+                    .getTotalWorldTime()
+                : CemClient.frame();
     }
 
     private CemRuleFacts(Object object, long tick) {
