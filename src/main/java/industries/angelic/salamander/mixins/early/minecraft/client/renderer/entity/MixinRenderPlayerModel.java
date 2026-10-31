@@ -20,6 +20,7 @@ import industries.angelic.salamander.api.skin.DrawKind;
 import industries.angelic.salamander.api.skin.LayerDraw;
 import industries.angelic.salamander.api.skin.PlayerSkins;
 import industries.angelic.salamander.api.skin.SkinLayers;
+import industries.angelic.salamander.compat.avaritia.AvaritiaOverlay;
 import industries.angelic.salamander.compat.ears.EarsDetect;
 import industries.angelic.salamander.compat.smartmoving.SmartRenderModels;
 import industries.angelic.salamander.compat.wallgrab.WallGrabCompat;
@@ -90,5 +91,7 @@ public class MixinRenderPlayerModel {
             original.call(player);
             if (!draw.suppressed()) model.drawFirstPersonSleeve(draw, 0.0625F);
         }
+        // ArmoredArms can draw another arm pass inside original; its early arm hook is too soon for the shimmer.
+        AvaritiaOverlay.firstPerson(player, model.bipedRightArm, true);
     }
 }

@@ -58,6 +58,7 @@ public class LateMixinLoader implements ILateMixinLoader {
             if (loadedMods.contains("ears") || loadedMods.contains("foamfix"))
                 mixins.add("ears.MixinLayerEarsDelegate");
             if (loadedMods.contains("Botania")) mixins.add("botania.MixinClientProxyPlayerModel");
+            if (loadedMods.contains("Avaritia")) mixins.add("avaritia.MixinModelArmorInfinity");
             if (loadedMods.contains("modelcitizens")) mixins.add("modelcitizens.MixinRenderCorpse");
             if (loadedMods.contains("SmartRender")) mixins.add("smartrender.MixinSmartRenderModelPlayer");
         }
