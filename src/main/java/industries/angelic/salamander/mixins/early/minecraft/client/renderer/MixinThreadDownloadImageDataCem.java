@@ -19,13 +19,22 @@ public abstract class MixinThreadDownloadImageDataCem implements CemSkinTexture 
     @Unique
     private volatile BufferedImage salamander$originalSkin;
 
+    @Unique
+    private volatile BufferedImage salamander$uploadedSkin;
+
     @Inject(method = "setBufferedImage", at = @At("HEAD"))
     private void salamander$captureSkin(BufferedImage image, CallbackInfo ci) {
         salamander$originalSkin = CemSkinImages.original(image);
+        salamander$uploadedSkin = image;
     }
 
     @Override
     public BufferedImage salamander$skinImage() {
         return salamander$originalSkin;
+    }
+
+    @Override
+    public BufferedImage salamander$uploadedImage() {
+        return salamander$uploadedSkin;
     }
 }

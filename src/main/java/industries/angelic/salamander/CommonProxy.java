@@ -5,20 +5,26 @@ import com.geckolib.network.GeckoLibNetwork;
 import com.gtnewhorizon.gtnhlib.config.ConfigException;
 import com.gtnewhorizon.gtnhlib.config.ConfigurationManager;
 
+import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import industries.angelic.salamander.cem.network.CemNetwork;
 import industries.angelic.salamander.cem.network.CemSignalPacket;
 import industries.angelic.salamander.config.CemConfig;
 import industries.angelic.salamander.config.DebugConfig;
+import industries.angelic.salamander.config.SkinLayersConfigMigration;
 import industries.angelic.salamander.debug.DebugContent;
 
 public class CommonProxy {
 
     public void preInit(FMLPreInitializationEvent event) {
+        SkinLayersConfigMigration.migrate(event.getModConfigurationDirectory());
         try {
             ConfigurationManager.registerConfig(DebugConfig.class);
             ConfigurationManager.registerConfig(CemConfig.class);
             ConfigurationManager.registerConfig(industries.angelic.salamander.config.TextureConfig.class);
+            ConfigurationManager.registerConfig(industries.angelic.salamander.config.SkinConfig.class);
+            ConfigurationManager.registerConfig(industries.angelic.salamander.config.SkinLayers3DConfig.class);
+            ConfigurationManager.registerConfig(industries.angelic.salamander.config.SkullConfig.class);
         } catch (ConfigException exception) {
             throw new IllegalStateException("Unable to register Salamander configuration", exception);
         }
@@ -29,6 +35,8 @@ public class CommonProxy {
 
         if (DebugConfig.debugMode) DebugContent.register();
     }
+
+    public void postInit(FMLPostInitializationEvent event) {}
 
     public void handleEntityAnimationTrigger(int entityId, boolean replacedEntity, String controllerName,
         String animationName) {}

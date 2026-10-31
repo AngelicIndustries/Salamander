@@ -13,7 +13,6 @@ import net.minecraft.client.model.ModelRenderer;
 import net.minecraft.client.model.PositionTextureVertex;
 import net.minecraft.client.model.TexturedQuad;
 
-import industries.angelic.salamander.compat.wawelauth.WawelAuthOverlays;
 import industries.angelic.salamander.mixins.early.minecraft.client.AccessorCemModelBox;
 
 /**
@@ -26,7 +25,7 @@ final class CemArmorSlices {
     private static final float EPSILON = 1.0e-3f;
     /** CEM part names to the overlay piece that shares the part's box. */
     private static final Map<String, String> PIECES = new HashMap<>();
-    private static final Map<ModelRenderer, Map<WawelAuthOverlays.Overlay, List<TexturedQuad>>> SHARES = new WeakHashMap<>();
+    private static final Map<ModelRenderer, Map<CemOverlays.Overlay, List<TexturedQuad>>> SHARES = new WeakHashMap<>();
 
     static {
         PIECES.put("head", "HAT");
@@ -45,7 +44,7 @@ final class CemArmorSlices {
     }
 
     /** Where the vanilla piece's box starts, relative to its part's pivot. Slim sleeves are a pixel narrower. */
-    static float[] vanillaOrigin(WawelAuthOverlays.Overlay slice) {
+    static float[] vanillaOrigin(CemOverlays.Overlay slice) {
         switch (slice.part) {
             case "HAT":
                 return new float[] { -4, -8, -4 };
@@ -61,7 +60,7 @@ final class CemArmorSlices {
     }
 
     /** From the part's pivot to the slice bone's frame, in pixels: where the slice puts the vanilla piece. */
-    static float[] offset(WawelAuthOverlays.Overlay slice) {
+    static float[] offset(CemOverlays.Overlay slice) {
         float[] origin = vanillaOrigin(slice);
         return new float[] { slice.x - origin[0], slice.y - origin[1], slice.z - origin[2] };
     }
@@ -70,7 +69,7 @@ final class CemArmorSlices {
      * The faces of the armor part that ride slice {@code index} of the limb's slices, top to bottom. The joints sit
      * between consecutive slices' rows, in pixels down from the part's pivot.
      */
-    static List<TexturedQuad> share(ModelRenderer part, List<WawelAuthOverlays.Overlay> slices, int index) {
+    static List<TexturedQuad> share(ModelRenderer part, List<CemOverlays.Overlay> slices, int index) {
         return SHARES.computeIfAbsent(part, ignored -> new IdentityHashMap<>())
             .computeIfAbsent(slices.get(index), ignored -> {
                 float top = index == 0 ? Float.NEGATIVE_INFINITY : joint(slices.get(index - 1), slices.get(index));
@@ -87,7 +86,7 @@ final class CemArmorSlices {
     }
 
     /** Where two consecutive slices meet, between their rows, in pixels down from the part's pivot. */
-    static float joint(WawelAuthOverlays.Overlay upper, WawelAuthOverlays.Overlay lower) {
+    static float joint(CemOverlays.Overlay upper, CemOverlays.Overlay lower) {
         return vanillaOrigin(upper)[1] + (upper.rowEnd + lower.rowStart) / 2f;
     }
 

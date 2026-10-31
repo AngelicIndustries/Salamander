@@ -1,4 +1,4 @@
-package industries.angelic.salamander.compat.wawelauth;
+package industries.angelic.salamander.cem.client;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -6,14 +6,15 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 
+import industries.angelic.salamander.api.skin.LayerSegment;
 import industries.angelic.salamander.cem.model.CemModel;
 
 /**
  * Recognizes CEM boxes that are an overlay piece of the vanilla 64x64 player skin, or a slice of its rows: the vanilla
  * UV layout, size and inflation, wherever the pack places and animates them. A pack that splits a limb at the elbow or
- * knee draws each slice as its own box. Wawel Auth can draw those itself, flat or 3D. Holds no Wawel Auth types.
+ * knee draws each slice as its own box. Salamander's skin layers draw those, flat or 3D.
  */
-public final class WawelAuthOverlays {
+public final class CemOverlays {
 
     private static final float EPSILON = 1.0e-3f;
     /** Packs shrink overlays a hair to avoid z-fighting, as Fresh Animations' hat (0.49) and jacket (0.24) do. */
@@ -26,7 +27,7 @@ public final class WawelAuthOverlays {
         new Net("LEFT_SLEEVE", 48, 48, 3, 12, 4, 0.25f), new Net("RIGHT_PANTS", 0, 32, 4, 12, 4, 0.25f),
         new Net("LEFT_PANTS", 0, 48, 4, 12, 4, 0.25f) };
 
-    private WawelAuthOverlays() {}
+    private CemOverlays() {}
 
     /**
      * The model's overlay boxes and the piece or slice each draws. Slices only count when the model's slices of that
@@ -142,8 +143,8 @@ public final class WawelAuthOverlays {
         public final int width, height, depth, u, v;
         /** The rows of the piece this box draws; all of them for a whole piece. */
         public final int rowStart, rowEnd;
-        /** The Wawel Auth segment, made on first use. */
-        Object segment;
+        /** The layer segment, made on first use. */
+        LayerSegment segment;
 
         Overlay(Net net, float x, float y, float z, int rowStart, int rowEnd) {
             this.net = net;

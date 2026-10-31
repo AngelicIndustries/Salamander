@@ -5,6 +5,7 @@ import com.gtnewhorizon.gtnhlib.config.Config;
 import industries.angelic.salamander.Salamander;
 
 @Config(modid = Salamander.MODID, category = "cem", configSubDirectory = Salamander.MODID)
+@Config.LangKeyPattern(pattern = "%mod.config.%cat.%field")
 public final class CemConfig {
 
     @Config.Comment("Load custom entity models for supported vanilla and Et Futurum Requiem targets from resource packs. Reload resources after changing.")

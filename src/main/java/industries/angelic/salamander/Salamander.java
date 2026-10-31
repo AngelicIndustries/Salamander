@@ -5,6 +5,7 @@ import org.apache.logging.log4j.Logger;
 
 import cpw.mods.fml.common.Mod;
 import cpw.mods.fml.common.SidedProxy;
+import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 
 @Mod(
@@ -12,7 +13,8 @@ import cpw.mods.fml.common.event.FMLPreInitializationEvent;
     version = Tags.VERSION,
     name = Salamander.MODNAME,
     acceptedMinecraftVersions = "[1.7.10]",
-    dependencies = "required-after:gtnhlib@[0.11.30,)",
+    guiFactory = Salamander.MODGROUP + "." + Salamander.MODID + ".config.SalamanderGuiFactory",
+    dependencies = "required-after:gtnhlib@[0.11.30,);after:wawelauth;after:simpleskinbackport",
     customProperties = { @Mod.CustomProperty(k = "license", v = "MIT AND LGPL-3.0-only"),
         @Mod.CustomProperty(k = "issueTrackerUrl", v = "https://github.com/AngelicIndustries/Salamander/issues") })
 public class Salamander {
@@ -33,5 +35,10 @@ public class Salamander {
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
         proxy.preInit(event);
+    }
+
+    @Mod.EventHandler
+    public void postInit(FMLPostInitializationEvent event) {
+        proxy.postInit(event);
     }
 }

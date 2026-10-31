@@ -22,6 +22,7 @@ import com.github.alexthe666.citadel.animation.Animation;
 import com.github.alexthe666.citadel.animation.IAnimatedEntity;
 
 import cpw.mods.fml.common.FMLCommonHandler;
+import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import industries.angelic.salamander.cem.client.CemClient;
 import industries.angelic.salamander.cem.client.CemClientSignals;
@@ -53,7 +54,17 @@ public class ClientProxy extends CommonProxy {
             .bus()
             .register(CemClientSignals.INSTANCE);
 
+        industries.angelic.salamander.skin.layers.LayerDraws.register();
+        industries.angelic.salamander.compat.ears.EarsAnchors.register();
+        industries.angelic.salamander.skin.translucent.TranslucentLayers.register();
+
         if (DebugConfig.debugMode) DebugClientContent.register();
+    }
+
+    @Override
+    public void postInit(FMLPostInitializationEvent event) {
+        super.postInit(event);
+        industries.angelic.salamander.compat.ssb.SsbTakeover.takeOver();
     }
 
     @Override

@@ -15,8 +15,6 @@ import org.lwjgl.opengl.GL11;
 import industries.angelic.salamander.cem.model.CemBoxMesh;
 import industries.angelic.salamander.cem.model.CemModel;
 import industries.angelic.salamander.cem.model.CemSpriteMesh;
-import industries.angelic.salamander.compat.wawelauth.WawelAuthCompat;
-import industries.angelic.salamander.compat.wawelauth.WawelAuthOverlays;
 
 /** Baked box vertices rendered through the vanilla Tessellator, with no Angelica dependency or GPU cache. */
 public final class CemGeometry {
@@ -29,12 +27,12 @@ public final class CemGeometry {
 
     public CemGeometry(CemModel model) {
         this.model = model;
-        Map<CemModel.Box, WawelAuthOverlays.Overlay> matches = WawelAuthOverlays.matchAll(model);
+        Map<CemModel.Box, CemOverlays.Overlay> matches = CemOverlays.matchAll(model);
         for (CemModel.Node node : model.nodes) {
             List<float[]> part = new ArrayList<>();
             List<OverlayBox> pieces = new ArrayList<>();
             for (CemModel.Box box : node.boxes) {
-                WawelAuthOverlays.Overlay overlay = matches.get(box);
+                CemOverlays.Overlay overlay = matches.get(box);
                 List<float[]> target = part;
                 if (overlay != null) {
                     OverlayBox piece = new OverlayBox(overlay);
@@ -135,9 +133,9 @@ public final class CemGeometry {
     public static final class Slice {
 
         public final List<CemModel.Node> path;
-        public final WawelAuthOverlays.Overlay overlay;
+        public final CemOverlays.Overlay overlay;
 
-        Slice(List<CemModel.Node> path, WawelAuthOverlays.Overlay overlay) {
+        Slice(List<CemModel.Node> path, CemOverlays.Overlay overlay) {
             this.path = path;
             this.overlay = overlay;
         }
@@ -247,7 +245,7 @@ public final class CemGeometry {
         }
         draw(faces.get(node.index), scale);
         for (OverlayBox piece : overlays.get(node.index))
-            if (!skin || !WawelAuthCompat.submit(piece.overlay)) draw(piece.faces, scale);
+            if (!skin || !CemLayers.submit(piece.overlay)) draw(piece.faces, scale);
     }
 
     private static void draw(List<float[]> geometry, float scale) {
@@ -268,10 +266,10 @@ public final class CemGeometry {
 
     private static final class OverlayBox {
 
-        final WawelAuthOverlays.Overlay overlay;
+        final CemOverlays.Overlay overlay;
         final List<float[]> faces = new ArrayList<>();
 
-        OverlayBox(WawelAuthOverlays.Overlay overlay) {
+        OverlayBox(CemOverlays.Overlay overlay) {
             this.overlay = overlay;
         }
     }

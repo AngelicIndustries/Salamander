@@ -47,7 +47,7 @@ dependencies {
     // Pure runtime
     runtimeOnlyNonPublishable("com.github.GTNewHorizons:Hodgepodge:2.7.216:dev")
     runtimeOnlyNonPublishable("com.github.GTNewHorizons:NotEnoughItems:2.8.157-GTNH:dev")
-    runtimeOnlyNonPublishable("com.github.GTNewHorizons:Angelica:2.2.29:dev")
+    runtimeOnlyNonPublishable("com.github.GTNewHorizons:Angelica:2.2.35:dev")
     runtimeOnlyNonPublishable("ganymedes01.etfuturum:Et-Futurum-Requiem:2.6.60-GTNH:dev")
     runtimeOnlyNonPublishable(rfg.deobf("maven.modrinth:bugtorch:1.3.1"))
     runtimeOnlyNonPublishable(rfg.deobf("curse.maven:catalogue-vintage-1465746:8384975")) // 1.0.8-1.7.10
@@ -62,8 +62,10 @@ dependencies {
     api("com.github.GTNewHorizons:GTNHLib:0.11.52:dev")
 
     // Optional integrations under development
-    compileOnly("com.github.GTNewHorizons:Angelica:2.2.29:dev")
-    compileOnly(wawelAuthDependency) // Skin layers, models and pixels
+    compileOnly("com.github.GTNewHorizons:Angelica:2.2.35:dev") // See-through skins under shaders
+    compileOnly("ganymedes01.etfuturum:Et-Futurum-Requiem:2.6.60-GTNH:dev") // Fancy player heads
+    compileOnly("com.github.GTNewHorizons:Botania:1.13.34-GTNH:dev") // Gaia Guardian player model
+    compileOnly(wawelAuthDependency) // Skin info: textures, arms, part toggles
     compileOnly("com.github.GTNewHorizons:Backhand:1.8.15:dev") // Off hand for EMF variables and nbt()
 
     // Test

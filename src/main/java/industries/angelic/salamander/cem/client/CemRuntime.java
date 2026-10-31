@@ -17,8 +17,6 @@ import net.minecraft.entity.Entity;
 import net.minecraft.util.ResourceLocation;
 
 import industries.angelic.salamander.cem.model.CemModel;
-import industries.angelic.salamander.compat.wawelauth.WawelAuthCompat;
-import industries.angelic.salamander.compat.wawelauth.WawelAuthOverlays;
 import industries.angelic.salamander.config.CemConfig;
 
 /** Render-thread scopes keep nested entity, tile, item and multipass draws isolated. */
@@ -248,7 +246,7 @@ public final class CemRuntime {
             return firstPersonParts(
                 sleeve,
                 replaces(selection.entry, "right_sleeve"),
-                () -> WawelAuthCompat.claimLayers(Collections.singletonList("right_sleeve")),
+                () -> CemLayers.claim(Collections.singletonList("right_sleeve")),
                 name -> renderPart(selectedHand, name, scale, false));
         } catch (Exception exception) {
             if (hand != null) CemResources.INSTANCE.fail(hand.entry.model, exception);
@@ -454,7 +452,7 @@ public final class CemRuntime {
         double[] pose = body.instance.pose;
         List<CemGeometry.Slice> order = new java.util.ArrayList<>(slices);
         order.sort(java.util.Comparator.comparingInt(slice -> slice.overlay.rowStart));
-        List<WawelAuthOverlays.Overlay> rows = new java.util.ArrayList<>();
+        List<CemOverlays.Overlay> rows = new java.util.ArrayList<>();
         for (CemGeometry.Slice slice : order) rows.add(slice.overlay);
         rendering = true;
         try {

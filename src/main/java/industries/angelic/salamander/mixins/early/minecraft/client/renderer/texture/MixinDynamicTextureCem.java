@@ -41,4 +41,10 @@ public abstract class MixinDynamicTextureCem implements CemSkinTexture {
         }
         return salamander$skinSnapshot;
     }
+
+    /** A dynamic texture is uploaded as it is. */
+    @Override
+    public BufferedImage salamander$uploadedImage() {
+        return salamander$skinImage();
+    }
 }

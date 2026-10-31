@@ -46,6 +46,15 @@ public class EarlyMixinLoader implements IEarlyMixinLoader, IFMLLoadingPlugin {
             mixins.add("minecraft.client.MixinNetHandlerPlayClientCemHeadRotation");
             mixins.add("minecraft.client.resources.AccessorAbstractResourcePack");
             mixins.add("minecraft.client.renderer.entity.MixinRenderPlayer");
+            // Player skins: the 64x64 model, its layers, see-through texels and player heads.
+            mixins.add("minecraft.client.renderer.entity.MixinRenderPlayerModel");
+            mixins.add("minecraft.client.renderer.entity.AccessorRendererLivingEntity");
+            mixins.add("fml.MixinRenderingRegistryPlayerModel");
+            mixins.add("minecraft.client.renderer.tileentity.MixinTileEntitySkullRendererSkin");
+            mixins.add("minecraft.client.renderer.MixinEntityRendererTranslucentLayers");
+            mixins.add("minecraft.client.renderer.AccessorTessellator");
+            mixins.add("minecraft.client.renderer.MixinTessellatorTranslucentBase");
+            mixins.add("minecraft.client.model.MixinModelRendererTranslucentBase");
             mixins.add("minecraft.client.renderer.entity.MixinRenderSpiderCem");
             mixins.add("minecraft.client.model.MixinModelIronGolemCemRender");
             mixins.add("minecraft.client.model.MixinModelSilverfishCemRender");

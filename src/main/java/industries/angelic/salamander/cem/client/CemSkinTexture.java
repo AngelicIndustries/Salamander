@@ -6,4 +6,7 @@ import java.awt.image.BufferedImage;
 public interface CemSkinTexture {
 
     BufferedImage salamander$skinImage();
+
+    /** The pixels as uploaded, after the skin was parsed; null before the download finished. */
+    BufferedImage salamander$uploadedImage();
 }

@@ -8,6 +8,7 @@ import com.gtnewhorizon.gtnhmixins.LateMixin;
 
 import cpw.mods.fml.relauncher.IFMLLoadingPlugin;
 import industries.angelic.salamander.Salamander;
+import industries.angelic.salamander.compat.ears.EarsTransformerAccess;
 
 @SuppressWarnings("unused")
 @LateMixin
@@ -43,6 +44,22 @@ public class LateMixinLoader implements ILateMixinLoader {
         if (cpw.mods.fml.relauncher.FMLLaunchHandler.side()
             .isClient() && loadedMods.contains("armoredarms")) {
             mixins.add("armoredarms.MixinArmModelRendererPlayerCem");
+            mixins.add("armoredarms.MixinArmModelRendererPlayerSleeve");
+        }
+        if (cpw.mods.fml.relauncher.FMLLaunchHandler.side()
+            .isClient()) {
+            // Player skins on other mods' renderers.
+            EarsTransformerAccess.open();
+            if (loadedMods.contains("etfuturum")) mixins.add("etfuturum.MixinTileEntityFancySkullRenderer");
+            if (loadedMods.contains("aether_legacy")) {
+                mixins.add("aether.MixinAetherItemRenderer");
+                mixins.add("aether.MixinPlayerAetherRenderer");
+            }
+            if (loadedMods.contains("ears") || loadedMods.contains("foamfix"))
+                mixins.add("ears.MixinLayerEarsDelegate");
+            if (loadedMods.contains("Botania")) mixins.add("botania.MixinClientProxyPlayerModel");
+            if (loadedMods.contains("modelcitizens")) mixins.add("modelcitizens.MixinRenderCorpse");
+            if (loadedMods.contains("SmartRender")) mixins.add("smartrender.MixinSmartRenderModelPlayer");
         }
         return mixins;
     }

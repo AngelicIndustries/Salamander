@@ -15,7 +15,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.authlib.properties.Property;
 
-import industries.angelic.salamander.compat.wawelauth.WawelAuthCompat;
+import industries.angelic.salamander.api.skin.PlayerSkins;
 
 /** Uses native biped parts and profile metadata without depending on a particular modern-skin mod. */
 public final class CemPlayers {
@@ -47,8 +47,7 @@ public final class CemPlayers {
     }
 
     public static boolean slim(AbstractClientPlayer player, ModelBase model) {
-        Boolean wawel = WawelAuthCompat.slim(player);
-        if (wawel != null) return wawel;
+        if (!PlayerSkins.vanilla()) return PlayerSkins.slim(player);
         ModelBiped biped = (ModelBiped) model;
         // A modern renderer can resolve local/provider-specific skins before its model is drawn.
         if (biped.bipedRightArm.textureHeight == biped.bipedRightArm.textureWidth
@@ -56,6 +55,11 @@ public final class CemPlayers {
             ModelBox arm = biped.bipedRightArm.cubeList.get(0);
             return Math.abs(arm.posX2 - arm.posX1 - 3) < .01;
         }
+        return profileSlim(player);
+    }
+
+    /** Slim arms as SkinManager or the player's profile property report them. */
+    public static boolean profileSlim(AbstractClientPlayer player) {
         Boolean resolved = SKIN_MODELS.get(player);
         if (resolved != null) return resolved;
         String value = "";

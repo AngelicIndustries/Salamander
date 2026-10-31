@@ -9,8 +9,8 @@ import org.spongepowered.asm.mixin.Mixin;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 
+import industries.angelic.salamander.cem.client.CemLayers;
 import industries.angelic.salamander.cem.client.CemRuntime;
-import industries.angelic.salamander.compat.wawelauth.WawelAuthCompat;
 
 @Mixin(ModelBiped.class)
 public abstract class MixinModelBipedCemRender {
@@ -21,7 +21,7 @@ public abstract class MixinModelBipedCemRender {
         ModelBase model = (ModelBase) (Object) this;
         CemRuntime.Draw previous = CemRuntime.begin(model, entity, limb, speed, age, yaw, pitch);
         try {
-            WawelAuthCompat.claimLayers(CemRuntime.replacedOverlays(model));
+            CemLayers.claim(CemRuntime.replacedOverlays(model));
             original.call(entity, limb, speed, age, yaw, pitch, scale);
         } finally {
             CemRuntime.end(previous, scale);
