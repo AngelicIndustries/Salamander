@@ -13,6 +13,8 @@ import cpw.mods.fml.common.event.FMLPreInitializationEvent;
     version = Tags.VERSION,
     name = Salamander.MODNAME,
     acceptedMinecraftVersions = "[1.7.10]",
+    // Players without it, and servers without it, are fine: its packets only go to peers that announced the channel
+    acceptableRemoteVersions = "*",
     guiFactory = Salamander.MODGROUP + "." + Salamander.MODID + ".config.SalamanderGuiFactory",
     dependencies = "required-after:gtnhlib@[0.11.30,);after:wawelauth;after:simpleskinbackport",
     customProperties = { @Mod.CustomProperty(k = "license", v = "MIT AND LGPL-3.0-only"),
