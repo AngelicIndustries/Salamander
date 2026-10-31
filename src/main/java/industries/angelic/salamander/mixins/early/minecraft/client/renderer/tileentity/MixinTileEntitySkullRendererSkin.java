@@ -104,7 +104,7 @@ public class MixinTileEntitySkullRendererSkin {
 
         // 3D hat overlay
         if (SkinLayers3DConfig.enabled3D && SkullConfig.enableSkulls) {
-            VoxelMesh hatMesh = SkinLayers3DSetup.getOrCreateSkullMesh(profile, skin);
+            VoxelMesh hatMesh = SkinLayers3DSetup.getOrCreateSkullMesh(skin);
             if (hatMesh != null) {
                 float voxelSize = SkullConfig.skullVoxelSize;
                 GL11.glPushAttrib(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_CURRENT_BIT);
@@ -127,6 +127,6 @@ public class MixinTileEntitySkullRendererSkin {
 
     @Unique
     private static ResourceLocation salamander$resolveSkin(GameProfile profile) {
-        return profile == null || profile.getId() == null ? null : PlayerSkins.skull(profile);
+        return profile == null ? null : PlayerSkins.skull(profile);
     }
 }

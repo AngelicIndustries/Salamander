@@ -3,12 +3,9 @@ package industries.angelic.salamander.skin.skull;
 import java.awt.image.BufferedImage;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import net.minecraft.util.ResourceLocation;
-
-import com.mojang.authlib.GameProfile;
 
 import industries.angelic.salamander.Salamander;
 import industries.angelic.salamander.api.skin.PlayerSkins;
@@ -27,8 +24,8 @@ import industries.angelic.salamander.skin.voxel.VoxelSurfaceBuilder;
  */
 public class SkinLayers3DSetup {
 
-    /** Cache for skull meshes keyed by GameProfile. */
-    private static final Map<UUID, SkullMeshCache> skullCache = new ConcurrentHashMap<>();
+    /** Skull hat meshes by skin texture: a head may only have its owner's name, and heads share their owner's skin. */
+    private static final Map<ResourceLocation, SkullMeshCache> skullCache = new ConcurrentHashMap<>();
 
     public static void clearSkullCache() {
         skullCache.values()
@@ -36,38 +33,31 @@ public class SkinLayers3DSetup {
         skullCache.clear();
     }
 
-    public static void updateSkullCache(UUID uuid, SkullMeshCache newCache) {
-        if (uuid == null) return;
-        SkullMeshCache oldCache = (newCache == null) ? skullCache.remove(uuid) : skullCache.put(uuid, newCache);
+    private static void updateSkullCache(ResourceLocation skin, SkullMeshCache newCache) {
+        SkullMeshCache oldCache = (newCache == null) ? skullCache.remove(skin) : skullCache.put(skin, newCache);
         if (oldCache != null && oldCache.mesh != null && oldCache != newCache) {
             oldCache.mesh.cleanup();
         }
     }
 
-    public static SkullMeshCache getSkullCache(UUID uuid) {
-        if (uuid == null) return null;
-        return skullCache.get(uuid);
-    }
-
     /**
      * Get or create a 3D hat mesh for a player skull.
      *
-     * @param profile      the skull's game profile
      * @param skinLocation the skull's skin texture location
      * @return the hat mesh, or null if generation failed
      */
-    public static VoxelMesh getOrCreateSkullMesh(GameProfile profile, ResourceLocation skinLocation) {
-        if (profile == null || skinLocation == null) return null;
+    public static VoxelMesh getOrCreateSkullMesh(ResourceLocation skinLocation) {
+        if (skinLocation == null) return null;
 
         BufferedImage skinImage = getSkinImage(skinLocation);
-        SkullMeshCache cached = getSkullCache(profile.getId());
+        SkullMeshCache cached = skullCache.get(skinLocation);
         if (cached != null) {
-            if (skinLocation.equals(cached.skinLocation) && skinImage == cached.image) {
+            if (skinImage == cached.image) {
                 return cached.mesh;
             }
             // Remove the entry along with the cleanup so a failed rebuild
-            // cannot leave a destroyed mesh served under the old location.
-            updateSkullCache(profile.getId(), null);
+            // cannot leave a destroyed mesh served for the old pixels.
+            updateSkullCache(skinLocation, null);
         }
 
         if (skinImage == null || skinImage.getWidth() != 64 || skinImage.getHeight() != 64) {
@@ -77,7 +67,7 @@ public class SkinLayers3DSetup {
         try {
             ImageVoxelTexture skinData = new ImageVoxelTexture(skinImage);
             VoxelMesh mesh = buildMesh(skinData, 8, 8, 8, 32, 0, false, 0.6f);
-            updateSkullCache(profile.getId(), new SkullMeshCache(skinLocation, skinImage, mesh));
+            updateSkullCache(skinLocation, new SkullMeshCache(skinLocation, skinImage, mesh));
             return mesh;
         } catch (Exception e) {
             Salamander.LOG.error("Failed to build 3D skull hat mesh", e);
