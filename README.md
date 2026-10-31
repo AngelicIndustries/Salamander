@@ -5,6 +5,8 @@
 
 Minecraft 1.7.10 support for [GeckoLib](https://github.com/bernie-g/geckolib) (3, 4, 5), model-related portions of [Citadel](https://github.com/AlexModGuy/Citadel), and OptiFine-format custom entity models (CEM).
 
+It also draws player skins in the modern format: 64x64 skins with slim arms, flat or 3D skin layers, see-through skin pixels (also under Angelica's shaders), and 3D hat layers on player heads. Skins come from [Wawel Auth](https://github.com/AngelicIndustries/WawelAuth) when it is installed, and from vanilla's skin download otherwise. With SimpleSkinBackport installed as well, Salamander draws the players and SimpleSkinBackport's own player drawing stays off.
+
 <!--
 
 [![curse](images/badges/curse.png)](https://www.curseforge.com/minecraft/mc-mods/salamander)
@@ -26,6 +28,7 @@ Minecraft 1.7.10 support for [GeckoLib](https://github.com/bernie-g/geckolib) (3
 
 * [Custom entity models (CEM)](https://github.com/AngelicIndustries/Salamander/wiki/Custom-Entity-Models): resource packs, supported targets, configuration, and compatibility.
 * [Development](https://github.com/AngelicIndustries/Salamander/wiki/Development): building, regression tests, and debug models.
+* [Player skins](https://github.com/AngelicIndustries/Salamander/wiki/Player-Skins): skin layers, settings, and mod compatibility.
 
 ## Building
 
@@ -34,6 +37,7 @@ Minecraft 1.7.10 support for [GeckoLib](https://github.com/bernie-g/geckolib) (3
 ## Credits
 
 * The [GeckoLib](https://github.com/bernie-g/geckolib) contributors
+* Skin layer implementation inspired by the [last MIT commit](https://github.com/tr7zw/3d-Skin-Layers/commit/1830e6ed7b86550afc2ed2695391a09ca70285e2) of [3D Skin Layers Mod](https://github.com/tr7zw/3d-Skin-Layers)
 * Citadel compatibility code is derived from [Citadel](https://github.com/AlexModGuy/Citadel) and is licensed under LGPLv3
 * Debug fixtures use assets from GeckoLib Unofficial, Alex's Mobs, and Ice and Fire under their original licenses
 * The [GTNewHorizons](https://github.com/GTNewHorizons) tooling
