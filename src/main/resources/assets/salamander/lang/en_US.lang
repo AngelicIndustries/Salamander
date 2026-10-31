@@ -22,6 +22,7 @@ salamander.config.skulls.enableskulls=3D skull hats
 salamander.config.skulls.skullvoxelsize=Skull voxel size
 
 salamander.config.cem=Custom entity models
+salamander.config.cem.hooks=CEM hooks
 salamander.config.cem.enabled=Custom entity models
 salamander.config.cem.playermodels=Player models
 salamander.config.cem.emissivetextures=Emissive textures

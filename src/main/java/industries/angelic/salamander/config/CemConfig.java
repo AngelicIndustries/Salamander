@@ -8,7 +8,7 @@ import industries.angelic.salamander.Salamander;
 @Config.LangKeyPattern(pattern = "%mod.config.%cat.%field")
 public final class CemConfig {
 
-    @Config.Comment("Install Salamander's custom entity model hooks. When false, no CEM code runs: resource-pack entity models, player models, capes and EFR elytra, and CEM random and emissive textures are ignored.")
+    @Config.Comment("Install Salamander's custom entity model hooks. When false, no CEM code runs: resource-pack entity models, player models, capes and EFR elytra, random entity textures and emissive textures are ignored. Player skins and GeckoLib models are not affected.")
     @Config.DefaultBoolean(true)
     @Config.RequiresMcRestart
     public static boolean hooks = true;

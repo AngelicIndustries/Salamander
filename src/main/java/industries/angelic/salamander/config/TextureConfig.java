@@ -8,7 +8,7 @@ import industries.angelic.salamander.Salamander;
 @Config.LangKeyPattern(pattern = "%mod.config.%cat.%field")
 public final class TextureConfig {
 
-    @Config.Comment("Load random entity texture variants and rules from resource packs, independently of CEM. Reload resources after changing.")
+    @Config.Comment("Load random entity texture variants and rules from resource packs, with or without CEM models. Needs cem.hooks. Reload resources after changing.")
     @Config.DefaultBoolean(true)
     public static boolean randomEntityTextures = true;
 

@@ -54,7 +54,8 @@ public final class CemResources implements IResourceManagerReloadListener {
     private final Map<ResourceLocation, ResourceLocation> textures = new HashMap<>();
     private final Map<ResourceLocation, Variants> variants = new HashMap<>();
     private final Set<CemModel> failed = Collections.newSetFromMap(new IdentityHashMap<>());
-    private boolean models = true;
+    /** Whether an active pack provides CEM models; without CEM's hooks there is never any. */
+    private boolean models = CemConfig.hooks;
 
     private CemResources() {}
 
