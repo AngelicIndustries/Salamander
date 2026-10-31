@@ -99,8 +99,9 @@ public abstract class MixinPlayerAetherRenderer {
      * The Aether places agility boots as it places the halo, turned with the head, so they slide around the legs as the
      * player looks around. They are placed as for a head looking straight ahead.
      */
+    // Departure's source draws them in renderModel; its 26w35a release in renderInExistingSpace.
     @WrapWithCondition(
-        method = "renderModel",
+        method = { "renderModel", "renderInExistingSpace" },
         at = @At(value = "INVOKE", target = "Lorg/lwjgl/opengl/GL11;glRotatef(FFFF)V"),
         slice = @Slice(
             to = @At(
