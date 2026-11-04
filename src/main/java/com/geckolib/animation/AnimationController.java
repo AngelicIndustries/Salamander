@@ -57,6 +57,7 @@ public class AnimationController<T extends GeoAnimatable> {
     private double transitionElapsedTicks;
     private Map<String, BoneSnapshot> transitionStartPose = Collections.emptyMap();
     private Map<String, BoneSnapshot> lastEvaluatedPose = Collections.emptyMap();
+    private BakedAnimations lastAnimations;
 
     public AnimationController(AnimationStateHandler<T> stateHandler) {
         this("Default", 0, stateHandler);
@@ -199,6 +200,21 @@ public class AnimationController<T extends GeoAnimatable> {
         this.finished = false;
     }
 
+    /**
+     * Whether every stage of the animation exists in the animations this controller last ticked with. True before the
+     * first tick, when they aren't known yet. GeckoLib 4 kept playing the current animation when asked for a missing
+     * one; callers that need that can check this first.
+     */
+    public boolean canPlay(RawAnimation rawAnimation) {
+        if (rawAnimation == null || this.lastAnimations == null) return true;
+
+        for (RawAnimation.Stage stage : rawAnimation.getAnimationStages()) {
+            if (resolveAnimation(stage, this.lastAnimations) == null) return false;
+        }
+
+        return true;
+    }
+
     public boolean triggerAnimation(String animationName) {
         RawAnimation animation = this.triggerableAnimations.get(animationName);
 
@@ -252,6 +268,7 @@ public class AnimationController<T extends GeoAnimatable> {
         double animatableAge, MolangContext molangContext) {
         MolangContext context = molangContext == null ? MolangContext.EMPTY : molangContext;
         double tickDelta = calculateTickDelta(animatableAge);
+        this.lastAnimations = animations;
 
         if (!this.playingTriggeredAnimation || this.handlesTriggeredAnimations) {
             this.playState = this.stateHandler.handle(new AnimationTest<>(animatable, manager, this, context));
