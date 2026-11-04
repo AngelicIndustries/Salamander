@@ -1,5 +1,6 @@
 package com.geckolib.renderer.base;
 
+import java.nio.FloatBuffer;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Predicate;
@@ -9,6 +10,8 @@ import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
+import org.lwjgl.BufferUtils;
+import org.lwjgl.opengl.GL11;
 
 import com.geckolib.animation.state.BoneSnapshot;
 import com.geckolib.animation.state.ModelPose;
@@ -26,6 +29,7 @@ public final class GeoModelRenderer {
 
     private static final float MODEL_SCALE = 1 / 16f;
     private static final float NORMAL_EPSILON = 1.0E-8f;
+    private static final FloatBuffer MODELVIEW = BufferUtils.createFloatBuffer(16);
 
     private GeoModelRenderer() {}
 
@@ -40,9 +44,21 @@ public final class GeoModelRenderer {
         if (pose.model() != model) throw new IllegalArgumentException("Model pose belongs to a different baked model");
 
         Matrix4f identity = new Matrix4f();
+        Matrix4f view = currentModelView();
 
         for (GeoBone bone : model.topLevelBones()) {
-            renderBone(bone, pose, identity, boneFilter, consumer, red, green, blue, alpha);
+            renderBone(bone, pose, identity, view, boneFilter, consumer, red, green, blue, alpha);
+        }
+    }
+
+    /** The OpenGL modelview the vertices are drawn with, or null without a GL context, as in tests. */
+    private static Matrix4f currentModelView() {
+        try {
+            MODELVIEW.clear();
+            GL11.glGetFloat(GL11.GL_MODELVIEW_MATRIX, MODELVIEW);
+            return new Matrix4f(MODELVIEW);
+        } catch (RuntimeException | LinkageError e) {
+            return null;
         }
     }
 
@@ -65,8 +81,8 @@ public final class GeoModelRenderer {
         return new GeoRenderTransforms(bones, locators);
     }
 
-    private static void renderBone(GeoBone bone, ModelPose pose, Matrix4f parentMatrix, Predicate<GeoBone> boneFilter,
-        GeoVertexConsumer consumer, float red, float green, float blue, float alpha) {
+    private static void renderBone(GeoBone bone, ModelPose pose, Matrix4f parentMatrix, Matrix4f view,
+        Predicate<GeoBone> boneFilter, GeoVertexConsumer consumer, float red, float green, float blue, float alpha) {
         BoneSnapshot snapshot = pose.get(bone);
         Matrix4f boneMatrix = new Matrix4f(parentMatrix);
 
@@ -74,13 +90,13 @@ public final class GeoModelRenderer {
 
         if (boneFilter.test(bone) && !snapshot.isHidden() && bone instanceof CuboidGeoBone) {
             for (GeoCube cube : ((CuboidGeoBone) bone).cubes()) {
-                renderCube(cube, boneMatrix, consumer, red, green, blue, alpha);
+                renderCube(cube, boneMatrix, view, consumer, red, green, blue, alpha);
             }
         }
 
         if (!snapshot.areChildrenHidden()) {
             for (GeoBone child : bone.children()) {
-                renderBone(child, pose, boneMatrix, boneFilter, consumer, red, green, blue, alpha);
+                renderBone(child, pose, boneMatrix, view, boneFilter, consumer, red, green, blue, alpha);
             }
         }
     }
@@ -139,8 +155,8 @@ public final class GeoModelRenderer {
         matrix.scale(snapshot.getScaleX(), snapshot.getScaleY(), snapshot.getScaleZ());
     }
 
-    private static void renderCube(GeoCube cube, Matrix4f boneMatrix, GeoVertexConsumer consumer, float red,
-        float green, float blue, float alpha) {
+    private static void renderCube(GeoCube cube, Matrix4f boneMatrix, Matrix4f view, GeoVertexConsumer consumer,
+        float red, float green, float blue, float alpha) {
         Matrix4f cubeMatrix = new Matrix4f(boneMatrix);
         GeoVector pivot = cube.pivot();
         GeoVector rotation = cube.rotation();
@@ -165,8 +181,33 @@ public final class GeoModelRenderer {
         Vector3f normal = new Vector3f();
         Vector4f position = new Vector4f();
 
+        // A flat cube's two faces lie in the same plane with opposite normals. Entity rendering has culling off, so
+        // both would draw and fight over the same depth, flickering between the lit and the dark side. Draw only the
+        // face towards the camera; each side still shows its own texture.
+        Matrix4f eye = null;
+        Matrix3f eyeNormals = null;
+        GeoVector size = cube.size();
+        if (view != null && (size.x() == 0 || size.y() == 0 || size.z() == 0)) {
+            eye = new Matrix4f(view).mul(cubeMatrix);
+            eyeNormals = new Matrix3f().set(eye);
+            if (Math.abs(eyeNormals.determinant()) > NORMAL_EPSILON) eyeNormals.normal();
+            else eyeNormals = null;
+        }
+        Vector3f facing = new Vector3f();
+        Vector4f corner = new Vector4f();
+
         for (GeoQuad quad : cube.quads()) {
             if (quad == null) continue;
+
+            if (eyeNormals != null) {
+                GeoVertex first = quad.vertices()[0];
+                facing.set(quad.normalX(), quad.normalY(), quad.normalZ());
+                eyeNormals.transform(facing);
+                corner.set(first.posX(), first.posY(), first.posZ(), 1);
+                eye.transform(corner);
+                // The camera sits at the eye-space origin
+                if (facing.x * corner.x + facing.y * corner.y + facing.z * corner.z > 0) continue;
+            }
 
             normal.set(quad.normalX(), quad.normalY(), quad.normalZ());
             normalMatrix.transform(normal);
