@@ -30,6 +30,8 @@ public final class CemRandomTextures {
 
     private static final Map<ResourceLocation, CemTextureSet> SETS = new HashMap<>();
     private static final Set<ResourceLocation> VARIANTS = new HashSet<>();
+    /** Textures never swapped: no variants, or not eligible. Checked first, as every bind in a render asks. */
+    private static final Set<ResourceLocation> PLAIN = new HashSet<>();
     private static final Map<Object, State> STATES = new MapMaker().weakKeys()
         .makeMap();
     private static CemTextureSet.Resources resources;
@@ -39,6 +41,7 @@ public final class CemRandomTextures {
     public static void reload(IResourceManager manager) {
         SETS.clear();
         VARIANTS.clear();
+        PLAIN.clear();
         clearEntities();
         resources = new CemTextureSet.Resources() {
 
@@ -76,9 +79,11 @@ public final class CemRandomTextures {
             || (!(object instanceof Entity) && !(object instanceof TileEntity))
             || CemItemContext.hand()
             || CemItemContext.gui()
-            || !eligible(original)
-            || VARIANTS.contains(original)
-            || CemResources.INSTANCE.isEmissive(original)) return original;
+            || PLAIN.contains(original)) return original;
+        if (!eligible(original) || VARIANTS.contains(original) || CemResources.INSTANCE.isEmissive(original)) {
+            PLAIN.add(original);
+            return original;
+        }
         try {
             CemTextureSet set = SETS.get(original);
             if (set == null && !SETS.containsKey(original)) {
@@ -91,7 +96,15 @@ public final class CemRandomTextures {
                 set = CemTextureSet.load(candidates, resources);
                 SETS.put(original, set);
             }
-            if (set == null) return original;
+            if (set == null) {
+                PLAIN.add(original);
+                return original;
+            }
+            // One texture and no rules gives its base, unless an overlay inherits its body's variant.
+            if (set.plain() && CemRuntime.textureChoice() == null) {
+                CemRuntime.textureChoice(CemTextureSet.BASE_SELECTION);
+                return set.base;
+            }
             long tick = CemRuleFacts.tick(object);
             State state = STATES.get(object);
             if (state == null) {

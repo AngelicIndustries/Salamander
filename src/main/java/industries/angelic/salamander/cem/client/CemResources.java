@@ -70,9 +70,9 @@ public final class CemResources implements IResourceManagerReloadListener {
 
     private static boolean hasModels(IResourcePack pack) {
         if (pack instanceof DefaultResourcePack) return false;
-        if (!(pack instanceof AbstractResourcePack)) return true;
         Set<String> domains = pack.getResourceDomains();
         if (domains != null && !domains.contains("minecraft")) return false;
+        if (!(pack instanceof AbstractResourcePack)) return servesModelFolders(pack);
         File root = ((AccessorAbstractResourcePack) pack).salamander$getResourcePackFile();
         if (root == null) return true;
         if (root.isDirectory()) return hasEntries(new File(root, "assets/minecraft/optifine/cem"))
@@ -88,6 +88,19 @@ public final class CemResources implements IResourceManagerReloadListener {
             return false;
         } catch (IOException exception) {
             return true;
+        }
+    }
+
+    /**
+     * A pack that is no file or folder can't be listed, such as Et Futurum's generated sound and texture packs: it
+     * counts when it answers for a CEM folder, as a pack backed by a folder does.
+     */
+    private static boolean servesModelFolders(IResourcePack pack) {
+        try {
+            return pack.resourceExists(new ResourceLocation("minecraft", "optifine/cem"))
+                || pack.resourceExists(new ResourceLocation("minecraft", "emf/cem"));
+        } catch (RuntimeException exception) {
+            return false;
         }
     }
 

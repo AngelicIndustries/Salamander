@@ -110,17 +110,28 @@ public final class CemRuntime {
     public static void clear() {
         BINDINGS.clear();
         CAPES.clear();
+        for (Subject pooled : subjects) if (pooled != null) pooled.release();
         subject = null;
         draw = null;
     }
 
+    /** Subjects reused by depth: every entity and block entity render enters one, strictly nested. */
+    private static Subject[] subjects = new Subject[8];
+
     public static Subject enter(Object object, float partialTicks) {
         Subject previous = subject;
-        subject = new Subject(object, partialTicks, previous);
+        int depth = previous == null ? 0 : previous.depth + 1;
+        if (depth == subjects.length) subjects = java.util.Arrays.copyOf(subjects, depth * 2);
+        Subject next = subjects[depth];
+        if (next == null) next = subjects[depth] = new Subject(depth);
+        next.reset(object, partialTicks, previous);
+        subject = next;
         return previous;
     }
 
     public static void leave(Subject previous) {
+        Subject left = subject;
+        if (left != null && left != previous) left.release();
         subject = previous;
     }
 
@@ -562,18 +573,35 @@ public final class CemRuntime {
 
         industries.angelic.salamander.cem.loading.CemRules.Selection textureChoice;
 
-        final Object object;
-        final float partialTicks;
-        final Subject parent;
+        final int depth;
+        Object object;
+        float partialTicks;
+        Subject parent;
         Map<ModelBase, Draw> draws;
         Set<ModelBase> armorModels;
         CemResources.Entry primary;
         Draw primaryDraw;
 
-        Subject(Object object, float partialTicks, Subject parent) {
+        Subject(int depth) {
+            this.depth = depth;
+        }
+
+        void reset(Object object, float partialTicks, Subject parent) {
+            release();
             this.object = object;
             this.partialTicks = partialTicks;
             this.parent = parent;
+        }
+
+        /** Lets go of what this subject was entered for, so that a pooled one keeps no entity or world alive. */
+        void release() {
+            object = null;
+            parent = null;
+            textureChoice = null;
+            primary = null;
+            primaryDraw = null;
+            if (draws != null) draws.clear();
+            if (armorModels != null) armorModels.clear();
         }
 
         Draw draw(ModelBase model) {

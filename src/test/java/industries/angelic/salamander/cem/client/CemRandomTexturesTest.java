@@ -142,7 +142,8 @@ public class CemRandomTexturesTest {
     }
 
     private static void begin(Object object) throws Exception {
-        field(CemRuntime.class, "subject").set(null, new CemRuntime.Subject(object, 0, null));
+        field(CemRuntime.class, "subject").set(null, null);
+        CemRuntime.enter(object, 0);
     }
 
     private static ResourceLocation resolve(Object object) throws Exception {

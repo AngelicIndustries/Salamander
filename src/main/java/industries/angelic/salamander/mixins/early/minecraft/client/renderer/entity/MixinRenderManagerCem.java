@@ -26,6 +26,7 @@ public abstract class MixinRenderManagerCem {
         float previousBodyYaw = living == null ? 0 : living.prevRenderYawOffset;
         try {
             if (living instanceof CemEntityInputs && CemConfig.enabled
+                && CemResources.INSTANCE.hasModels()
                 && CemResources.INSTANCE.hasTargets(java.util.Collections.singletonList(CemTargets.target(entity))))
                 living.prevRenderYawOffset = ((CemEntityInputs) living).salamander$cemPreviousBodyYaw(previousBodyYaw);
             return original.call(entity, x, y, z, yaw, partial, debug);

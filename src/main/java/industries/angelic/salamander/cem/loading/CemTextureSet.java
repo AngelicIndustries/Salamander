@@ -22,7 +22,7 @@ public final class CemTextureSet {
         Properties properties(ResourceLocation location) throws IOException;
     }
 
-    private static final CemRules.Selection BASE_SELECTION = new CemRules.Selection(1, 0);
+    public static final CemRules.Selection BASE_SELECTION = new CemRules.Selection(1, 0);
 
     public final ResourceLocation base;
     public final ResourceLocation directory;
@@ -108,6 +108,11 @@ public final class CemTextureSet {
         if (rules != null) return rules.select(facts);
         if (inherited != null) return inherited;
         return count == 1 ? BASE_SELECTION : new CemRules.Selection(1 + (int) Math.floorMod(facts.seed(), count), 0);
+    }
+
+    /** Whether this set always gives its base texture unless a choice is inherited: one texture, no rules. */
+    public boolean plain() {
+        return rules == null && count == 1;
     }
 
     public ResourceLocation texture(CemRules.Selection choice) {
