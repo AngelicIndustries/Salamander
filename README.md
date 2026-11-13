@@ -9,11 +9,11 @@ It also draws player skins in the modern format: 64x64 skins with slim arms, fla
 
 <!--
 
-[![curse](images/badges/curse.png)](https://www.curseforge.com/minecraft/mc-mods/salamander)
 [![modrinth](images/badges/modrinth.png)](https://modrinth.com/mod/salamander)
 -->
 
 [![hub](images/badges/github.png)](https://github.com/AngelicIndustries/Salamander/releases)
+[![curse](images/badges/curse.png)](https://www.curseforge.com/minecraft/mc-mods/salamander)
 [![67](images/badges/67.png)](https://67minecraft.com/mod/salamander)
 [![maven](images/badges/maven.png)](https://maven.angelic.industries/#/releases/industries/angelic/salamander/Salamander)
 [![cord](images/badges/cord.png)](https://discord.gg/xAWCqGrguG)
