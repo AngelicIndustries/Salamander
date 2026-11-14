@@ -42,6 +42,9 @@ public class LateMixinLoader implements ILateMixinLoader {
             mixins.add("etfuturum.MixinModelHeadCem");
         }
         if (cpw.mods.fml.relauncher.FMLLaunchHandler.side()
+            .isClient() && industries.angelic.salamander.config.CemConfig.hooks && loadedMods.contains("angelica"))
+            mixins.add("angelica.MixinVanillaModelMeshesCem");
+        if (cpw.mods.fml.relauncher.FMLLaunchHandler.side()
             .isClient() && loadedMods.contains("armoredarms")) {
             mixins.add("armoredarms.MixinArmModelRendererPlayerCem");
             mixins.add("armoredarms.MixinArmModelRendererPlayerSleeve");

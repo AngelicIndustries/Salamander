@@ -1,5 +1,6 @@
 package industries.angelic.salamander.cem.client;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -11,6 +12,7 @@ import java.util.function.Predicate;
 import net.minecraft.client.model.ModelBase;
 import net.minecraft.client.model.ModelDragon;
 import net.minecraft.client.model.ModelEnderCrystal;
+import net.minecraft.client.model.ModelLargeChest;
 import net.minecraft.client.model.ModelRenderer;
 import net.minecraft.client.model.ModelSkeletonHead;
 import net.minecraft.entity.Entity;
@@ -105,6 +107,18 @@ public final class CemRuntime {
         if (subject == null || subject.primary == null) return false;
         CemModel.Node node = subject.primary.model.originalParts.get(name);
         return node != null && !node.vanillaGeometry;
+    }
+
+    /**
+     * Whether a pack has a model for the block entity now drawing this native model. Angelica's cached chest, sign and
+     * skull meshes skip the model's own render call, which CEM draws from, so they hand it back when this holds.
+     */
+    public static boolean claims(ModelBase model) {
+        if (!CemConfig.enabled || !CemResources.INSTANCE.hasModels() || !(model instanceof CemModelParts)) return false;
+        Object object = subject();
+        if (CemResources.INSTANCE.hasTargets(CemTargets.candidates(object, model, texture))) return true;
+        String target = model instanceof ModelLargeChest ? CemTargets.target(object) : null;
+        return target != null && CemResources.INSTANCE.hasTargets(Arrays.asList(target + "_left", target + "_right"));
     }
 
     public static void clear() {
