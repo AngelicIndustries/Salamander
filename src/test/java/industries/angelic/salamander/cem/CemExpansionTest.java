@@ -15,6 +15,7 @@ import net.minecraft.util.ResourceLocation;
 
 import org.junit.Test;
 
+import industries.angelic.salamander.cem.animation.CemVariables;
 import industries.angelic.salamander.cem.client.CemBinding;
 import industries.angelic.salamander.cem.loading.CemLoader;
 import industries.angelic.salamander.cem.model.CemBoxMesh;
@@ -237,7 +238,7 @@ public class CemExpansionTest {
             Collections.emptyMap(),
             64,
             32);
-        Map<String, Double> variables = new HashMap<>();
+        CemVariables variables = new CemVariables();
         CemModel.Instance bodyPose = body.newInstance(variables), layerPose = layer.newInstance(variables);
         bodyPose.evaluate(1, Collections.emptyMap(), p -> {});
         layerPose.evaluate(1, Collections.emptyMap(), p -> {});

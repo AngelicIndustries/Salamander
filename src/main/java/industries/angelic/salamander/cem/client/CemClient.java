@@ -12,6 +12,7 @@ import net.minecraft.world.World;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.TickEvent;
 import industries.angelic.salamander.cem.animation.CemNbtQueries;
+import industries.angelic.salamander.cem.animation.CemVariables;
 import industries.angelic.salamander.cem.model.CemModel;
 
 /** Frame clock and per-entity animation ownership independent of the rendering backend. */
@@ -223,7 +224,7 @@ public final class CemClient {
 
     private static final class State {
 
-        final Map<String, Double> variables = new HashMap<>();
+        final CemVariables variables = new CemVariables();
         final Map<CemModel, CemModel.Instance> instances = new java.util.IdentityHashMap<>();
         final Map<CemModel, CemModel.Instance> hands = new java.util.IdentityHashMap<>();
     }

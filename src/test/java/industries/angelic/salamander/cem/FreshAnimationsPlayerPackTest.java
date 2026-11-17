@@ -21,6 +21,7 @@ import org.junit.Assume;
 import org.junit.Test;
 
 import industries.angelic.salamander.cem.animation.CemNbtQueries;
+import industries.angelic.salamander.cem.animation.CemVariables;
 import industries.angelic.salamander.cem.client.CemBinding;
 import industries.angelic.salamander.cem.client.CemPlayers;
 import industries.angelic.salamander.cem.loading.CemLoader;
@@ -67,7 +68,7 @@ public class FreshAnimationsPlayerPackTest {
                 for (CemNbtQueries.Query query : CemNbtQueries.all()) registered |= query.input.equals(shield);
                 assertTrue(registered);
 
-                CemModel.Instance instance = body.newInstance(new HashMap<>());
+                CemModel.Instance instance = body.newInstance(new CemVariables());
                 Map<String, Double> inputs = new HashMap<>();
                 inputs.put("id", 42d);
                 inputs.put("frame_time", 1d / 60);

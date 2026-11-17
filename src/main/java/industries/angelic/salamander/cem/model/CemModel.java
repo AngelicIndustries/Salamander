@@ -15,6 +15,7 @@ import net.minecraft.util.ResourceLocation;
 
 import industries.angelic.salamander.cem.animation.CemExpression;
 import industries.angelic.salamander.cem.animation.CemExpressionParser;
+import industries.angelic.salamander.cem.animation.CemVariables;
 
 /** Compiled geometry and assignments, shared by independent per-entity instances. */
 public final class CemModel {
@@ -109,6 +110,9 @@ public final class CemModel {
                 "render.leash_offset_x",
                 "render.leash_offset_y",
                 "render.leash_offset_z")));
+    /** Render properties by slot. */
+    private static final List<String> RENDER_NAMES = Collections
+        .unmodifiableList(new ArrayList<>(new java.util.TreeSet<>(RENDER_PROPERTIES)));
 
     public final ResourceLocation source;
     public final ResourceLocation texture;
@@ -117,6 +121,9 @@ public final class CemModel {
     public final List<Node> nodes;
     public final Map<String, Node> originalParts;
     private final List<Assignment> program = new ArrayList<>();
+    /** The inputs this model reads, by slot: each is looked up once per evaluation, not once per use. */
+    private final List<String> inputNames = new ArrayList<>();
+    private final Map<String, Integer> inputSlots = new HashMap<>();
     private final double[] defaults;
     private final boolean[] animated;
     /** By node index: whether the node hangs from {@link #root}. A replaced parent drops some of its children. */
@@ -138,9 +145,9 @@ public final class CemModel {
         for (Animation animation : animations) {
             Access target = access(animation.target, animation.owner, animation.part, true);
             CemExpression expression = CemExpressionParser
-                .compile(animation.expression, name -> access(name, animation.owner, animation.part, false)::get);
+                .compile(animation.expression, name -> access(name, animation.owner, animation.part, false).reader());
             program.add(new Assignment(target, expression));
-            if (target.index >= 0) animated[target.index] = true;
+            if (target.kind == Access.POSE) animated[target.index] = true;
         }
     }
 
@@ -149,10 +156,11 @@ public final class CemModel {
     }
 
     public Instance newInstance() {
-        return new Instance(new HashMap<>());
+        return new Instance(new CemVariables());
     }
 
-    public Instance newInstance(Map<String, Double> variables) {
+    /** An instance sharing an entity's variables with its other models. */
+    public Instance newInstance(CemVariables variables) {
         return new Instance(variables);
     }
 
@@ -179,17 +187,26 @@ public final class CemModel {
     }
 
     private Access access(String name, Node self, Node part, boolean writable) {
-        if (RENDER_PROPERTIES.contains(name)) return new Access(name, -1, false, false);
+        int render = RENDER_NAMES.indexOf(name);
+        if (render >= 0) return new Access(Access.RENDER, render, false);
         if (name.startsWith("var.") || name.startsWith("varb."))
-            return new Access(name, -1, name.startsWith("varb."), false);
+            return new Access(Access.VARIABLE, CemVariables.slot(name), name.startsWith("varb."));
         int dot = name.lastIndexOf('.');
         if (dot > 0) {
             Node node = find(name.substring(0, dot), self, part);
             int property = PROPERTIES.indexOf(name.substring(dot + 1));
             if (node != null && property >= 0)
-                return new Access(name, node.index * STRIDE + property, property >= 9, false);
+                return new Access(Access.POSE, node.index * STRIDE + property, property >= 9);
         }
-        if (!writable && INPUTS.contains(name)) return new Access(name, -1, false, true);
+        if (!writable && INPUTS.contains(name)) {
+            Integer slot = inputSlots.get(name);
+            if (slot == null) {
+                slot = inputNames.size();
+                inputNames.add(name);
+                inputSlots.put(name, slot);
+            }
+            return new Access(Access.INPUT, slot, false);
+        }
         throw new IllegalArgumentException(
             source + ": unknown " + (writable ? "animation target" : "variable") + " '" + name + "'");
     }
@@ -197,12 +214,14 @@ public final class CemModel {
     public final class Instance {
 
         public final double[] pose = defaults.clone();
-        public final Map<String, Double> variables;
+        public final CemVariables variables;
         public final Map<String, Double> renderProperties = new HashMap<>();
         private final boolean[] hidden = new boolean[nodes.size()];
+        private final double[] inputValues = new double[inputNames.size()];
+        private final double[] renderValues = new double[RENDER_NAMES.size()];
         private long lastFrame = Long.MIN_VALUE;
 
-        private Instance(Map<String, Double> variables) {
+        private Instance(CemVariables variables) {
             this.variables = variables;
         }
 
@@ -240,17 +259,29 @@ public final class CemModel {
             java.util.Arrays.fill(hidden, false);
             System.arraycopy(defaults, 0, pose, 0, defaults.length);
             vanillaPose.accept(pose);
-            for (String property : RENDER_PROPERTIES) renderProperties.put(
-                property,
-                inputs.getOrDefault(
-                    property,
-                    property.equals("render.shadow_size") ? (double) shadowSize
-                        : property.equals("render.shadow_opacity") ? 1d : 0d));
-            CemExpression.Context context = new CemExpression.Context(pose, variables, inputs, renderProperties);
+            for (int i = 0; i < inputValues.length; i++) {
+                Double value = inputs.get(inputNames.get(i));
+                inputValues[i] = value == null ? 0 : value;
+            }
+            for (int i = 0; i < renderValues.length; i++) {
+                String property = RENDER_NAMES.get(i);
+                Double value = inputs.get(property);
+                renderValues[i] = value != null ? value
+                    : property.equals("render.shadow_size") ? shadowSize
+                        : property.equals("render.shadow_opacity") ? 1 : 0;
+            }
+            CemExpression.Context context = new CemExpression.Context(
+                pose,
+                variables,
+                inputs,
+                renderProperties,
+                inputValues,
+                renderValues);
             for (Assignment assignment : program) {
                 double value = assignment.expression.evaluate(context);
                 assignment.target.set(context, value);
             }
+            for (int i = 0; i < renderValues.length; i++) renderProperties.put(RENDER_NAMES.get(i), renderValues[i]);
             // Some standard packs intentionally divide by zero to hide a part. Never pass infinity/NaN to GL.
             for (Node node : nodes) {
                 int offset = node.index * STRIDE;
@@ -344,31 +375,50 @@ public final class CemModel {
         }
     }
 
+    /** A name resolved when the model compiles: evaluation only indexes arrays. */
     private static final class Access {
 
-        final String name;
+        static final int POSE = 0, VARIABLE = 1, INPUT = 2, RENDER = 3;
+
+        final int kind;
         final int index;
         final boolean bool;
-        final boolean input;
 
-        Access(String name, int index, boolean bool, boolean input) {
-            this.name = name;
+        Access(int kind, int index, boolean bool) {
+            this.kind = kind;
             this.index = index;
             this.bool = bool;
-            this.input = input;
         }
 
-        double get(CemExpression.Context context) {
-            return index >= 0 ? context.pose[index]
-                : (input ? context.inputs
-                    : RENDER_PROPERTIES.contains(name) ? context.renderProperties : context.variables)
-                        .getOrDefault(name, 0d);
+        CemExpression reader() {
+            int slot = index;
+            switch (kind) {
+                case POSE:
+                    return c -> c.pose[slot];
+                case VARIABLE:
+                    return c -> c.slots.get(slot);
+                case INPUT:
+                    return c -> c.inputValues[slot];
+                default:
+                    return c -> c.renderValues[slot];
+            }
         }
 
         void set(CemExpression.Context context, double value) {
             if (bool) value = CemExpressionParser.truth(value) ? 1 : 0;
-            if (index >= 0) context.pose[index] = value;
-            else(RENDER_PROPERTIES.contains(name) ? context.renderProperties : context.variables).put(name, value);
+            switch (kind) {
+                case POSE:
+                    context.pose[index] = value;
+                    break;
+                case VARIABLE:
+                    context.slots.set(index, value);
+                    break;
+                case RENDER:
+                    context.renderValues[index] = value;
+                    break;
+                default:
+                    throw new IllegalStateException("CEM inputs are read-only");
+            }
         }
     }
 

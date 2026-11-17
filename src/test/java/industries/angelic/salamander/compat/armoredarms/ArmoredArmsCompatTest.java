@@ -10,7 +10,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.zip.ZipEntry;
@@ -23,6 +22,7 @@ import net.minecraft.util.ResourceLocation;
 import org.junit.Assume;
 import org.junit.Test;
 
+import industries.angelic.salamander.cem.animation.CemVariables;
 import industries.angelic.salamander.cem.client.CemBinding;
 import industries.angelic.salamander.cem.client.CemPlayers;
 import industries.angelic.salamander.cem.loading.CemLoader;
@@ -80,7 +80,7 @@ public class ArmoredArmsCompatTest {
                     if (entry == null) throw new FileNotFoundException(location.toString());
                     return new InputStreamReader(zip.getInputStream(entry), StandardCharsets.UTF_8);
                 }).load(new ResourceLocation("emf/cem/" + target + ".jem"), binding.pivots, binding.parents, 64, 64);
-                CemModel.Instance instance = model.newInstance(new HashMap<>());
+                CemModel.Instance instance = model.newInstance(new CemVariables());
                 instance.staticPose(pose -> binding.pose(model, pose, null, parts));
                 binding.playerLayers(instance, true);
                 for (String name : new String[] { "right_arm", "right_sleeve" }) {

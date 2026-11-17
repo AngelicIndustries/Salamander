@@ -19,6 +19,7 @@ import net.minecraft.util.ResourceLocation;
 import org.junit.Assume;
 import org.junit.Test;
 
+import industries.angelic.salamander.cem.animation.CemVariables;
 import industries.angelic.salamander.cem.client.CemBinding;
 import industries.angelic.salamander.cem.client.CemPlayers;
 import industries.angelic.salamander.cem.loading.CemLoader;
@@ -52,7 +53,7 @@ public class FreshMovesPackTest {
                         CemModel body = loader(zip).load(path(target), binding.pivots, binding.parents, 64, 64);
                         assertTrue(body.assignmentCount() > 70);
                         assertTrue(body.root.children.contains(body.originalParts.get("right_sleeve")));
-                        Map<String, Double> variables = new HashMap<>();
+                        CemVariables variables = new CemVariables();
                         CemModel.Instance instance = body.newInstance(variables);
                         Map<String, Double> inputs = new HashMap<>();
                         inputs.put("id", 42d);
