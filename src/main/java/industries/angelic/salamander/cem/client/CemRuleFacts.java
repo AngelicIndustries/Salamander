@@ -33,7 +33,9 @@ public final class CemRuleFacts implements CemRules.Facts {
     private static final String[] COLORS = { "white", "orange", "magenta", "light_blue", "yellow", "lime", "pink",
         "gray", "light_gray", "cyan", "purple", "blue", "brown", "green", "red", "black" };
     private final WeakReference<Object> subject;
-    private final long tick, seed;
+    private final long tick, seed, vehicleSeed;
+    /** Loaded mod ids, which never change after startup. */
+    private static String mods;
     private final Map<String, String> values = new HashMap<>();
     private NBTTagCompound nbt;
 
@@ -68,8 +70,8 @@ public final class CemRuleFacts implements CemRules.Facts {
         int x = entity != null ? MathHelper.floor_double(entity.posX) : tile == null ? 0 : tile.xCoord;
         int y = entity != null ? MathHelper.floor_double(entity.boundingBox.minY) : tile == null ? 0 : tile.yCoord;
         int z = entity != null ? MathHelper.floor_double(entity.posZ) : tile == null ? 0 : tile.zCoord;
-        seed = entity != null ? entity.getUniqueID()
-            .getLeastSignificantBits() & 0x7fffffffL : (x * 73428767L ^ y * 912931L ^ z * 438289L) & 0x7fffffffL;
+        seed = entity != null ? seed(entity) : (x * 73428767L ^ y * 912931L ^ z * 438289L) & 0x7fffffffL;
+        vehicleSeed = entity != null && entity.ridingEntity != null ? seed(entity.ridingEntity) : seed;
         values.put("heights", String.valueOf(y));
         if (world != null) {
             values.put("biomes", world.getBiomeGenForCoords(x, z).biomeName);
@@ -136,7 +138,8 @@ public final class CemRuleFacts implements CemRules.Facts {
     public List<String> values(String key) {
         String value = value(key);
         return value == null ? java.util.Collections.emptyList()
-            : key.equals("items") ? java.util.Arrays.asList(value.split("\n"))
+            : key.equals("items") || key.equals("modLoaded") || key.equals("resourcepack")
+                ? java.util.Arrays.asList(value.split("\n"))
                 : java.util.Collections.singletonList(value);
     }
 
@@ -217,6 +220,71 @@ public final class CemRuleFacts implements CemRules.Facts {
             case "language":
                 return net.minecraft.client.Minecraft.getMinecraft().gameSettings.language
                     .toLowerCase(java.util.Locale.ROOT);
+            case "difficulty":
+                return world == null || world.difficultySetting == null ? null
+                    : String.valueOf(world.difficultySetting.getDifficultyId());
+            case "hardcore":
+                return world == null ? null
+                    : String.valueOf(
+                        world.getWorldInfo()
+                            .isHardcoreModeEnabled());
+            case "temperature":
+                if (world == null) return null;
+                int tx = entity != null ? MathHelper.floor_double(entity.posX) : tile.xCoord,
+                    ty = entity != null ? MathHelper.floor_double(entity.posY) : tile.yCoord,
+                    tz = entity != null ? MathHelper.floor_double(entity.posZ) : tile.zCoord;
+                return String.valueOf(
+                    world.getBiomeGenForCoords(tx, tz)
+                        .getFloatTemperature(tx, ty, tz));
+            case "blockBelow":
+            case "blockBelowSolid":
+                return blockBelow(entity, tile, world, key.equals("blockBelowSolid"));
+            case "clientGameMode": {
+                // 0 survival, 1 creative, 2 adventure, as the game mode ids; 1.7.10 has no spectator.
+                net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getMinecraft();
+                if (mc.thePlayer == null || mc.playerController == null) return null;
+                return mc.playerController.isInCreativeMode() ? "1" : mc.thePlayer.capabilities.allowEdit ? "0" : "2";
+            }
+            case "creative":
+                return entity instanceof net.minecraft.entity.player.EntityPlayer
+                    ? String.valueOf(((net.minecraft.entity.player.EntityPlayer) entity).capabilities.isCreativeMode)
+                    : null;
+            case "clientPlayer": {
+                net.minecraft.entity.player.EntityPlayer self = net.minecraft.client.Minecraft.getMinecraft().thePlayer;
+                return String.valueOf(
+                    entity instanceof net.minecraft.entity.player.EntityPlayer && self != null
+                        && entity.getUniqueID()
+                            .equals(self.getUniqueID()));
+            }
+            case "teammate": {
+                net.minecraft.entity.player.EntityPlayer self = net.minecraft.client.Minecraft.getMinecraft().thePlayer;
+                return living == null || self == null ? null
+                    : String.valueOf(living == self || living.isOnSameTeam(self));
+            }
+            case "usingShaders":
+                return String.valueOf(industries.angelic.salamander.compat.angelica.AngelicaShaders.inUse());
+            case "modLoaded":
+                if (mods == null) {
+                    List<String> ids = new ArrayList<>();
+                    for (cpw.mods.fml.common.ModContainer mod : cpw.mods.fml.common.Loader.instance()
+                        .getActiveModList()) ids.add(mod.getModId());
+                    mods = String.join("\n", ids);
+                }
+                return mods;
+            case "resourcepack": {
+                // ETF compares modern pack ids: the default pack is "vanilla", a pack file is "file/<name>".
+                List<String> packs = new ArrayList<>();
+                packs.add("vanilla");
+                for (Object entry : net.minecraft.client.Minecraft.getMinecraft()
+                    .getResourcePackRepository()
+                    .getRepositoryEntries()) {
+                    String name = ((net.minecraft.client.resources.ResourcePackRepository.Entry) entry)
+                        .getResourcePackName();
+                    packs.add(name);
+                    packs.add("file/" + name);
+                }
+                return String.join("\n", packs);
+            }
             case "hour":
                 return calendar(java.util.Calendar.HOUR_OF_DAY);
             case "minute":
@@ -238,6 +306,25 @@ public final class CemRuleFacts implements CemRules.Facts {
         }
     }
 
+    /** As ETF: the first non-air block at or below the entity, or with {@code solid} the first opaque one. */
+    private static String blockBelow(Entity entity, TileEntity tile, World world, boolean solid) {
+        if (world == null) return null;
+        int x = entity != null ? MathHelper.floor_double(entity.posX) : tile.xCoord,
+            y = entity != null ? MathHelper.floor_double(entity.posY) : tile.yCoord,
+            z = entity != null ? MathHelper.floor_double(entity.posZ) : tile.zCoord;
+        for (; y >= 0; y--) {
+            Block block = world.getBlock(x, y, z);
+            if (solid ? block.isOpaqueCube() : block.getMaterial() != net.minecraft.block.material.Material.air)
+                return Block.blockRegistry.getNameForObject(block) + ":" + world.getBlockMetadata(x, y, z);
+        }
+        return null;
+    }
+
+    private static long seed(Entity entity) {
+        return entity.getUniqueID()
+            .getLeastSignificantBits() & 0x7fffffffL;
+    }
+
     private String calendar(int field) {
         if (calendar == null) calendar = java.util.Calendar.getInstance();
         return String.valueOf(calendar.get(field));
@@ -248,6 +335,11 @@ public final class CemRuleFacts implements CemRules.Facts {
     @Override
     public long seed() {
         return seed;
+    }
+
+    @Override
+    public long vehicleSeed() {
+        return vehicleSeed;
     }
 
     @Override

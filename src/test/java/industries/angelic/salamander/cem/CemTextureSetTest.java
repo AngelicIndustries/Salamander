@@ -159,13 +159,14 @@ public class CemTextureSetTest {
             CemTextureSet.variant(id("textures/entity/example_2.png"), 3));
     }
 
+    /** As ETF: an unknown condition is left out of its rule with a warning, and the rest of the file still applies. */
     @Test
-    public void malformedRulesFailInsteadOfRandomizingUnconditionally() throws Exception {
+    public void unknownConditionsAreIgnoredWithAWarning() throws Exception {
         Resources resources = new Resources().add(COW.toString(), 0)
             .rules("optifine/random/entity/cow/cow.properties", 1, "textures.1=2\nunsupportedThing.1=true\n");
-        assertThrows(
-            IllegalArgumentException.class,
-            () -> CemTextureSet.load(Collections.singletonList(COW), resources));
+        CemTextureSet set = CemTextureSet.load(Collections.singletonList(COW), resources);
+        assertEquals(1, set.rules.warnings.size());
+        assertEquals(2, set.select(new Facts(0), null).model);
     }
 
     @Test

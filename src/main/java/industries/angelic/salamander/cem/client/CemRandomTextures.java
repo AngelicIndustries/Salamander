@@ -95,6 +95,8 @@ public final class CemRandomTextures {
                         candidates.add(new ResourceLocation("minecraft", alias));
                 set = CemTextureSet.load(candidates, resources);
                 SETS.put(original, set);
+                if (set.rules != null) for (String warning : set.rules.warnings)
+                    Salamander.LOG.warn("Random entity texture rules for '{}': {}", set.directory, warning);
             }
             if (set == null) {
                 PLAIN.add(original);
@@ -199,6 +201,12 @@ public final class CemRandomTextures {
         @Override
         public long seed() {
             return seed;
+        }
+
+        /** The vehicle can change after spawning, so it is read as the current tick sees it. */
+        @Override
+        public long vehicleSeed() {
+            return snapshot == null ? seed : snapshot.vehicleSeed();
         }
     }
 

@@ -191,10 +191,10 @@ public final class CemResources implements IResourceManagerReloadListener {
             .getInputStream()) {
                 Properties values = new Properties();
                 values.load(stream);
-                return new Variants(
-                    resource,
-                    new industries.angelic.salamander.cem.loading.CemRules(values),
-                    new int[] { 1 });
+                industries.angelic.salamander.cem.loading.CemRules rules = new industries.angelic.salamander.cem.loading.CemRules(
+                    values);
+                for (String warning : rules.warnings) Salamander.LOG.warn("CEM rules '{}': {}", properties, warning);
+                return new Variants(resource, rules, new int[] { 1 });
             } catch (Exception exception) {
                 Salamander.LOG.warn("Invalid CEM rules '{}'; using base model", properties, exception);
                 return new Variants(resource, null, new int[] { 1 });

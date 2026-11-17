@@ -30,6 +30,11 @@ public final class CemRules {
         }
 
         long seed();
+
+        /** The seed of the entity this one rides, or its own seed when it rides nothing, as ETF's vehicle seed. */
+        default long vehicleSeed() {
+            return seed();
+        }
     }
 
     public static final class Selection {
@@ -59,7 +64,47 @@ public final class CemRules {
         BLOCK_ALIASES.put("grass_block", "grass");
         BLOCK_ALIASES.put("podzol", "dirt:2");
     }
+    /** ETF's other names for rule properties. */
+    private static final Map<String, String> ALIASES = new HashMap<>();
+    static {
+        alias("biomes", "biome");
+        alias("blocks", "block", "blockSpawned");
+        alias("heights", "height");
+        alias("sizes", "size");
+        alias("name", "names");
+        alias("teams", "team");
+        alias("items", "item");
+        alias("colors", "collarColors");
+        alias("maxHealth", "max_health");
+        alias("moving", "is_moving");
+        alias("angry", "isAngry", "is_angry", "aggressive", "is_aggressive");
+        alias("creeperCharged", "creeper_charged");
+        alias("playerCreated", "player_created");
+        alias("jumpStrength", "jump", "jumpHeight");
+        alias("speed", "maxSpeed", "speeds");
+        alias("distanceFromPlayer", "distance");
+        alias("monthDay", "dayMonth");
+        alias("weekDay", "dayWeek");
+        alias("yearDay", "dayYear");
+        alias("modLoaded", "modsLoaded");
+        alias("resourcepack", "resourcepackLoaded");
+        alias("creative", "isCreative");
+        alias("clientPlayer", "isClientPlayer");
+        alias("teammate", "isTeammate");
+    }
+    /** Keys that configure a rule rather than test the entity. */
+    private static final Set<String> RULE_KEYS = new HashSet<>(
+        Arrays.asList("models", "textures", "skins", "weights", "seedOffset", "seedSource"));
     private final List<Rule> rules = new ArrayList<>();
+    /**
+     * What was skipped while reading, for the caller to log with the file's name. As in ETF, an unknown or unreadable
+     * condition is left out of its rule, and a rule whose choices cannot be read is left out of the file.
+     */
+    public final List<String> warnings = new ArrayList<>();
+
+    private static void alias(String name, String... aliases) {
+        for (String alias : aliases) ALIASES.put(alias, name);
+    }
 
     public CemRules(Properties properties) {
         this(properties, false);
@@ -71,120 +116,185 @@ public final class CemRules {
         for (String key : properties.stringPropertyNames()) if (key.matches(keys + "\\.[1-9][0-9]{0,4}"))
             indices.add(Integer.parseInt(key.substring(key.indexOf('.') + 1)));
         for (int index : indices) {
-            String indicesValue = textures
+            String chosen = textures
                 ? properties.getProperty("textures." + index, properties.getProperty("skins." + index))
                 : properties.getProperty("models." + index);
-            Rule rule = new Rule(index, integers(indicesValue));
-            String weights = properties.getProperty("weights." + index);
-            if (weights != null) {
-                rule.weights = integers(weights);
-                if (rule.weights.length != rule.models.length) {
-                    if (!textures)
-                        throw new IllegalArgumentException("weights." + index + ": count differs from models");
-                    int oldLength = rule.weights.length;
-                    long sum = 0;
-                    for (int weight : rule.weights) sum += weight;
-                    rule.weights = Arrays.copyOf(rule.weights, rule.models.length);
-                    if (oldLength < rule.weights.length) Arrays.fill(
-                        rule.weights,
-                        oldLength,
-                        rule.weights.length,
-                        oldLength == 0 ? 1 : (int) (sum / oldLength));
-                }
+            int[] choices;
+            try {
+                choices = integers(chosen);
+            } catch (IllegalArgumentException exception) {
+                warnings.add("rule " + index + " skipped: " + exception.getMessage());
+                continue;
             }
-            for (int weight : rule.weights) {
-                if (weight < 0) throw new IllegalArgumentException("Negative CEM weight");
-                rule.total += weight;
-            }
-            if (rule.total <= 0) throw new IllegalArgumentException("CEM weights sum to zero");
+            Rule rule = new Rule(index, choices);
+            weights(rule, properties.getProperty("weights." + index));
+            seed(rule, properties.getProperty("seedOffset." + index), properties.getProperty("seedSource." + index));
             for (String key : properties.stringPropertyNames()) {
                 String suffix = "." + index;
-                if (key.startsWith("nbt." + index + ".")) {
-                    String path = key.substring(("nbt." + index + ".").length());
-                    CemNbtTest test = CemNbtTest.of(properties.getProperty(key));
-                    rule.conditions.add(f -> test.test(f, path));
-                } else if (key.endsWith(suffix)) {
-                    String type = key.substring(0, key.length() - suffix.length());
-                    String value = properties.getProperty(key)
-                        .trim();
-                    if (type.equals("models") || type.equals("textures")
-                        || type.equals("skins")
-                        || type.equals("weights")) continue;
-                    String actual = type.equals("collarColors") ? "colors" : type;
-                    if (actual.equals("distance")) actual = "distanceFromPlayer";
-                    if (actual.equals("isAngry")) actual = "angry";
-                    Predicate<String> condition;
-                    switch (actual) {
-                        case "heights":
-                        case "moonPhase":
-                        case "dayTime":
-                        case "sizes":
-                        case "maxHealth":
-                        case "speed":
-                        case "jumpStrength":
-                        case "distanceFromPlayer":
-                        case "light":
-                        case "hour":
-                        case "minute":
-                        case "second":
-                        case "monthDay":
-                        case "month":
-                        case "weekDay":
-                        case "yearDay":
-                        case "year":
-                            condition = range(value);
-                            break;
-                        case "minHeight":
-                            condition = v -> v != null && Double.parseDouble(v) >= Double.parseDouble(value);
-                            break;
-                        case "maxHeight":
-                            condition = v -> v != null && Double.parseDouble(v) <= Double.parseDouble(value);
-                            break;
-                        case "health":
-                            condition = range(value.replace("%", ""));
-                            if (value.contains("%")) actual = "healthPercent";
-                            break;
-                        case "name":
-                            condition = match(value);
-                            break;
-                        case "teams":
-                        case "language":
-                        case "dimension":
-                            condition = stringChoices(
-                                actual.equals("dimension") ? value.replace("minecraft:", "") : value);
-                            break;
-                        case "biomes":
-                        case "colors":
-                        case "weather":
-                        case "professions":
-                        case "blocks":
-                        case "items":
-                            condition = choices(value, actual);
-                            break;
-                        case "baby":
-                        case "creeperCharged":
-                        case "playerCreated":
-                        case "angry":
-                        case "moving":
-                            if (!value.equals("true") && !value.equals("false"))
-                                throw new IllegalArgumentException("Invalid boolean rule: " + key);
-                            condition = value::equals;
-                            break;
-                        default:
-                            throw new IllegalArgumentException("Unsupported CEM rule property: " + key);
+                String value = properties.getProperty(key)
+                    .trim();
+                try {
+                    if (key.startsWith("nbt." + index + ".")) {
+                        String path = key.substring(("nbt." + index + ".").length());
+                        CemNbtTest test = CemNbtTest.of(value);
+                        rule.conditions.add(f -> test.test(f, path));
+                        continue;
                     }
-                    String field = actual.equals("minHeight") || actual.equals("maxHeight") ? "heights" : actual;
-                    if (field.equals("blocks") || field.equals("items")) {
-                        boolean invert = value.startsWith("!");
-                        Predicate<String> item = choices(invert ? value.substring(1) : value, field);
-                        rule.conditions.add(
-                            f -> f.values(field)
-                                .stream()
-                                .anyMatch(item) != invert);
-                    } else rule.conditions.add(f -> condition.test(f.value(field)));
+                    if (!key.endsWith(suffix)) continue;
+                    String type = key.substring(0, key.length() - suffix.length());
+                    if (RULE_KEYS.contains(type)) continue;
+                    Predicate<Facts> condition = condition(ALIASES.getOrDefault(type, type), value);
+                    if (condition == null) warnings.add(key + " is not supported here; ignored");
+                    else rule.conditions.add(condition);
+                } catch (IllegalArgumentException exception) {
+                    warnings.add(key + "=" + value + " ignored: " + exception.getMessage());
                 }
             }
             rules.add(rule);
+        }
+    }
+
+    /** Fewer weights than choices take their average, extra ones are dropped; unusable weights pick uniformly. */
+    private void weights(Rule rule, String value) {
+        if (value == null) return;
+        int[] weights;
+        try {
+            weights = integers(value);
+        } catch (IllegalArgumentException exception) {
+            warnings.add("weights." + rule.index + " ignored: " + exception.getMessage());
+            return;
+        }
+        if (weights.length != rule.models.length) {
+            warnings.add(
+                "weights." + rule.index + " has " + weights.length + " weights for " + rule.models.length + " choices");
+            long sum = 0;
+            for (int weight : weights) sum += weight;
+            int given = weights.length;
+            weights = Arrays.copyOf(weights, rule.models.length);
+            if (given < weights.length)
+                Arrays.fill(weights, given, weights.length, given == 0 ? 1 : (int) (sum / given));
+        }
+        long total = 0;
+        for (int weight : weights) total += weight;
+        if (total <= 0) {
+            warnings.add("weights." + rule.index + " sum to zero; choosing uniformly");
+            return;
+        }
+        rule.weights = weights;
+        rule.total = total;
+    }
+
+    private void seed(Rule rule, String offset, String source) {
+        if (offset != null) try {
+            rule.offset = Integer.parseInt(offset.trim());
+        } catch (NumberFormatException exception) {
+            warnings.add("seedOffset." + rule.index + "=" + offset + " ignored");
+        }
+        if (source == null) return;
+        if (source.trim()
+            .equals("vehicle")) rule.vehicle = true;
+        else if (!source.trim()
+            .equals("entity")) warnings.add("seedSource." + rule.index + "=" + source + " ignored");
+    }
+
+    /** One rule condition, or null for a property this version cannot test. */
+    private static Predicate<Facts> condition(String type, String value) {
+        switch (type) {
+            case "heights":
+            case "moonPhase":
+            case "dayTime":
+            case "sizes":
+            case "maxHealth":
+            case "speed":
+            case "jumpStrength":
+            case "distanceFromPlayer":
+            case "light":
+            case "hour":
+            case "minute":
+            case "second":
+            case "monthDay":
+            case "month":
+            case "weekDay":
+            case "yearDay":
+            case "year":
+            case "difficulty":
+            case "clientGameMode":
+            case "temperature": {
+                Predicate<String> range = range(value);
+                return f -> range.test(f.value(type));
+            }
+            case "minHeight": {
+                double minimum = Double.parseDouble(value);
+                return f -> {
+                    String height = f.value("heights");
+                    return height != null && Double.parseDouble(height) >= minimum;
+                };
+            }
+            case "maxHeight": {
+                double maximum = Double.parseDouble(value);
+                return f -> {
+                    String height = f.value("heights");
+                    return height != null && Double.parseDouble(height) <= maximum;
+                };
+            }
+            case "health": {
+                Predicate<String> range = range(value.replace("%", ""));
+                String field = value.contains("%") ? "healthPercent" : "health";
+                return f -> range.test(f.value(field));
+            }
+            case "name": {
+                Predicate<String> name = match(value);
+                return f -> name.test(f.value(type));
+            }
+            case "teams":
+            case "language":
+            case "dimension": {
+                Predicate<String> choices = stringChoices(
+                    type.equals("dimension") ? value.replace("minecraft:", "") : value);
+                return f -> choices.test(f.value(type));
+            }
+            case "biomes":
+            case "colors":
+            case "weather":
+            case "professions": {
+                Predicate<String> choices = choices(value, type);
+                return f -> choices.test(f.value(type));
+            }
+            case "blocks":
+            case "items":
+            case "blockBelow":
+            case "blockBelowSolid": {
+                boolean invert = value.startsWith("!");
+                Predicate<String> item = choices(
+                    invert ? value.substring(1) : value,
+                    type.equals("items") ? "items" : "blocks");
+                return f -> f.values(type)
+                    .stream()
+                    .anyMatch(item) != invert;
+            }
+            case "modLoaded":
+            case "resourcepack": {
+                // As ETF: true when any loaded mod or pack matches.
+                Predicate<String> name = stringChoices(value);
+                return f -> f.values(type)
+                    .stream()
+                    .anyMatch(name);
+            }
+            case "baby":
+            case "creeperCharged":
+            case "playerCreated":
+            case "angry":
+            case "moving":
+            case "hardcore":
+            case "creative":
+            case "clientPlayer":
+            case "teammate":
+            case "usingShaders":
+                if (!value.equals("true") && !value.equals("false"))
+                    throw new IllegalArgumentException("expected true or false");
+                return f -> value.equals(f.value(type));
+            default:
+                return null;
         }
     }
 
@@ -196,7 +306,10 @@ public final class CemRules {
                 break;
             }
             if (matches) {
-                long chosen = Math.floorMod(facts.seed(), rule.total);
+                long seed = rule.vehicle ? facts.vehicleSeed() : facts.seed();
+                // As ETF and OptiFine: the seed's offset applies OptiFine's integer hash.
+                if (rule.offset != 0) seed = Math.abs((int) seed ^ hash(rule.offset));
+                long chosen = Math.floorMod(seed, rule.total);
                 for (int i = 0; i < rule.models.length; i++) {
                     chosen -= rule.weights[i];
                     if (chosen < 0) return new Selection(rule.models[i], rule.index);
@@ -204,6 +317,15 @@ public final class CemRules {
             }
         }
         return new Selection(1, 0);
+    }
+
+    private static int hash(int x) {
+        x ^= 0x3D ^ x >> 16;
+        x += x << 3;
+        x ^= x >> 4;
+        x *= 668265261;
+        x ^= x >> 15;
+        return x;
     }
 
     public boolean empty() {
@@ -396,6 +518,8 @@ public final class CemRules {
         final int[] models;
         int[] weights;
         long total;
+        int offset;
+        boolean vehicle;
         final List<Predicate<Facts>> conditions = new ArrayList<>();
 
         Rule(int index, int[] models) {
@@ -403,6 +527,8 @@ public final class CemRules {
             this.models = models;
             this.weights = new int[models.length];
             Arrays.fill(weights, 1);
+            total = models.length;
+            // As ETF, a choice below 1 makes the whole file invalid.
             for (int model : models)
                 if (model < 1) throw new IllegalArgumentException("CEM model index must be positive");
         }

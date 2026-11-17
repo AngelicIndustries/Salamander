@@ -76,11 +76,101 @@ public class CemRulesTest {
                 try (InputStream stream = zip.getInputStream(entry)) {
                     properties.load(stream);
                 }
-                new CemRules(properties).select(new Facts());
+                CemRules rules = new CemRules(properties);
+                rules.select(new Facts());
+                assertTrue(entry.getName() + ": " + rules.warnings, rules.warnings.isEmpty());
                 count++;
             }
         }
         assertEquals(15, count);
+    }
+
+    @Test
+    public void skipsWhatItCannotReadAsEtfDoes() throws Exception {
+        CemRules rules = rules(
+            "models.1=2\nbiomes.1=plains\nscreamingGoat.1=true\nbaby.1=maybe\nheights.1=high\n"
+                + "models.2=garbage\nname.2=Bob\nmodels.3=3\nweights.3=1 2 3\n");
+        assertEquals(rules.warnings.toString(), 5, rules.warnings.size());
+        Facts facts = new Facts();
+        facts.values.put("biomes", "plains");
+        // The unsupported and unreadable conditions are left out, so only the biome decides.
+        assertEquals(2, rules.select(facts).model);
+        facts.values.put("biomes", "desert");
+        // Rule 2 could not be read and is gone; rule 3 keeps its first weight.
+        assertEquals(3, rules.select(facts).rule);
+        assertEquals(3, rules.select(facts).model);
+    }
+
+    @Test
+    public void weightsArePaddedTrimmedOrDroppedAsEtfDoes() throws Exception {
+        Facts facts = new Facts();
+        CemRules padded = rules("models.1=2 3 4\nweights.1=2\n");
+        facts.seed = 2;
+        assertEquals(3, padded.select(facts).model);
+        CemRules zero = rules("models.1=2 3\nweights.1=0 0\n");
+        facts.seed = 1;
+        assertEquals(3, zero.select(facts).model);
+        CemRules negative = rules("models.1=2 3\nweights.1=-1 5\n");
+        assertEquals(3, negative.select(facts).model);
+        assertEquals(1, negative.warnings.size());
+    }
+
+    @Test
+    public void acceptsEtfPropertyAliases() throws Exception {
+        CemRules rules = rules(
+            "models.1=2\nbiome.1=plains\nnames.1=Bob\nis_angry.1=true\ndayMonth.1=1-31\nmax_health.1=10-20\n");
+        assertTrue(rules.warnings.toString(), rules.warnings.isEmpty());
+        Facts facts = new Facts();
+        facts.values.put("biomes", "plains");
+        facts.values.put("name", "Bob");
+        facts.values.put("angry", "true");
+        facts.values.put("monthDay", "5");
+        facts.values.put("maxHealth", "20");
+        assertEquals(2, rules.select(facts).model);
+        facts.values.put("angry", "false");
+        assertEquals(1, rules.select(facts).model);
+    }
+
+    @Test
+    public void seedOffsetAndVehicleSeedPickAsEtfDoes() throws Exception {
+        String choices = "models.1=2 3 4 5 6 7 8 9\n";
+        Facts facts = new Facts();
+        facts.seed = 5;
+        facts.vehicleSeed = 6;
+        assertEquals(7, rules(choices).select(facts).model);
+        assertEquals(8, rules(choices + "seedSource.1=vehicle\n").select(facts).model);
+        int expected = 2 + Math.abs(5 ^ optifineHash(1)) % 8;
+        assertEquals(expected, rules(choices + "seedOffset.1=1\n").select(facts).model);
+    }
+
+    /** ETF's copy of OptiFine's integer hash, kept separate from the code under test. */
+    private static int optifineHash(int x) {
+        x ^= 0x3D ^ x >> 16;
+        x += x << 3;
+        x ^= x >> 4;
+        x *= 668265261;
+        x ^= x >> 15;
+        return x;
+    }
+
+    @Test
+    public void etfKeysForModsPacksAndGameState() throws Exception {
+        CemRules rules = rules(
+            "models.1=2\nmodLoaded.1=angelica\nresourcepack.1=file/FA.zip\ndifficulty.1=2-3\nclientGameMode.1=1\n"
+                + "usingShaders.1=true\nhardcore.1=false\nteammate.1=false\nblockBelow.1=grass_block\n");
+        assertTrue(rules.warnings.toString(), rules.warnings.isEmpty());
+        Facts facts = new Facts();
+        facts.lists.put("modLoaded", java.util.Arrays.asList("salamander", "angelica"));
+        facts.lists.put("resourcepack", java.util.Arrays.asList("vanilla", "FA.zip", "file/FA.zip"));
+        facts.values.put("difficulty", "3");
+        facts.values.put("clientGameMode", "1");
+        facts.values.put("usingShaders", "true");
+        facts.values.put("hardcore", "false");
+        facts.values.put("teammate", "false");
+        facts.lists.put("blockBelow", Collections.singletonList("minecraft:grass:0"));
+        assertEquals(2, rules.select(facts).model);
+        facts.lists.put("modLoaded", Collections.singletonList("salamander"));
+        assertEquals(1, rules.select(facts).model);
     }
 
     private static CemRules rules(String text) throws Exception {
@@ -92,11 +182,23 @@ public class CemRulesTest {
     private static final class Facts implements CemRules.Facts {
 
         final Map<String, String> values = new HashMap<>(), nbt = new HashMap<>();
-        long seed;
+        final Map<String, List<String>> lists = new HashMap<>();
+        long seed, vehicleSeed;
 
         @Override
         public String value(String key) {
             return values.get(key);
+        }
+
+        @Override
+        public List<String> values(String key) {
+            if (lists.containsKey(key)) return lists.get(key);
+            return CemRules.Facts.super.values(key);
+        }
+
+        @Override
+        public long vehicleSeed() {
+            return vehicleSeed;
         }
 
         @Override
