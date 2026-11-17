@@ -124,8 +124,25 @@ public class CemLoaderTest {
         files.put(SOURCE, "{\"models\":[{\"part\":\"head\",\"model\":\"a.jpm\"}]}");
         files.put(CemLoader.path(SOURCE, "a.jpm", ".jpm"), "{\"model\":\"a.jpm\"}");
         assertThrows(IOException.class, () -> load(files));
-        files.put(SOURCE, "{\"models\":[{\"part\":\"head\",\"animations\":[{\"missing.rx\":\"1\"}]}]}");
-        assertThrows(IllegalArgumentException.class, () -> load(files));
+    }
+
+    /** As EMF: one bad entry, attachment or assignment is left out with a warning; the rest of the model works. */
+    @Test
+    public void leavesOutWhatItCannotUseAsEmfDoes() throws Exception {
+        Map<ResourceLocation, String> files = new HashMap<>();
+        files.put(
+            SOURCE,
+            "{\"models\":[{\"part\":\"jacket\",\"boxes\":[{\"textureOffset\":[0,0],\"coordinates\":[0,0,0,1,1,1]}]},"
+                + "{\"part\":\"head\",\"id\":\"head\",\"attachments\":{\"fox_item\":[0,1,0]},"
+                + "\"animations\":[{\"missing.rx\":\"1\",\"head.ry\":\"body2.rx + 0.5\",\"head.rz\":\"unknownfunction(1, 2)\","
+                + "\"head.tx\":\"2\"}]}]}");
+        CemModel model = loader(files).load(SOURCE, Collections.singletonMap("head", new float[] { 0, 15, -3 }));
+        assertEquals(model.warnings.toString(), 5, model.warnings.size());
+        CemModel.Instance instance = model.newInstance();
+        instance.evaluate(1, Collections.emptyMap(), pose -> {});
+        CemModel.Node head = model.originalParts.get("head");
+        assertEquals(0.5, instance.pose[head.index * CemModel.STRIDE + 4], 1e-9);
+        assertEquals(2, instance.pose[head.index * CemModel.STRIDE], 1e-9);
     }
 
     @Test

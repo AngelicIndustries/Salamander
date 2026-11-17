@@ -123,6 +123,44 @@ public abstract class CemSyntax {
         }
     }
 
+    /** EMF's catch(value, fallback, label): the fallback when the value is NaN or fails. */
+    public static final class Catch extends CemSyntax {
+
+        public final CemSyntax value;
+        public final CemSyntax fallback;
+        /** Logged with each use of the fallback; null for none. */
+        public final String label;
+
+        Catch(CemSyntax value, CemSyntax fallback, String label) {
+            this.value = value;
+            this.fallback = fallback;
+            this.label = label;
+        }
+
+        @Override
+        public CemExpression interpret() {
+            CemExpression x = value.interpret(), otherwise = fallback.interpret();
+            String name = label;
+            return c -> {
+                double result;
+                try {
+                    result = x.evaluate(c);
+                } catch (RuntimeException exception) {
+                    if (name != null) log("catch(" + name + ") found " + exception + " in x");
+                    return otherwise.evaluate(c);
+                }
+                if (!Double.isNaN(result)) return result;
+                if (name != null) log("catch(" + name + ") found NaN in x");
+                return otherwise.evaluate(c);
+            };
+        }
+    }
+
+    static void log(String message) {
+        java.util.logging.Logger.getLogger("Salamander CEM")
+            .info(message);
+    }
+
     /** A function call, its arity already checked by the parser. */
     public static final class Call extends CemSyntax {
 
@@ -160,6 +198,46 @@ public abstract class CemSyntax {
                 }
                 case "random":
                     return count == 0 ? c -> CemFunctions.random() : c -> CemFunctions.random(args[0].evaluate(c));
+                case "randomb":
+                    return count == 0 ? c -> CemFunctions.randomb() : c -> CemFunctions.randomb(args[0].evaluate(c));
+                case "keyframe":
+                case "keyframeloop": {
+                    boolean loop = name.equals("keyframeloop");
+                    return c -> {
+                        double k = args[0].evaluate(c);
+                        double[] frames = new double[count - 1];
+                        for (int i = 1; i < count; i++) frames[i - 1] = args[i].evaluate(c);
+                        return loop ? CemFunctions.keyframeloop(k, frames) : CemFunctions.keyframe(k, frames);
+                    };
+                }
+                case "catmullrom":
+                    return c -> CemFunctions.catmullrom(
+                        args[0].evaluate(c),
+                        args[1].evaluate(c),
+                        args[2].evaluate(c),
+                        args[3].evaluate(c),
+                        args[4].evaluate(c));
+                case "cubicbezier":
+                    return c -> CemFunctions.cubicbezier(
+                        args[0].evaluate(c),
+                        args[1].evaluate(c),
+                        args[2].evaluate(c),
+                        args[3].evaluate(c),
+                        args[4].evaluate(c));
+                case "hermite":
+                    return c -> CemFunctions.hermite(
+                        args[0].evaluate(c),
+                        args[1].evaluate(c),
+                        args[2].evaluate(c),
+                        args[3].evaluate(c),
+                        args[4].evaluate(c));
+                case "quadbezier":
+                    return c -> CemFunctions
+                        .quadbezier(args[0].evaluate(c), args[1].evaluate(c), args[2].evaluate(c), args[3].evaluate(c));
+                case "degdiff":
+                    return c -> CemFunctions.degdiff(args[0].evaluate(c), args[1].evaluate(c));
+                case "raddiff":
+                    return c -> CemFunctions.raddiff(args[0].evaluate(c), args[1].evaluate(c));
                 case "in":
                     return c -> {
                         float value = (float) args[0].evaluate(c);
@@ -174,15 +252,17 @@ public abstract class CemSyntax {
                         long interval = Math.max(1, (long) args[1].evaluate(c));
                         long frame = c.inputs.getOrDefault("frame_counter", 0d)
                             .longValue();
-                        if (frame % interval == 0) java.util.logging.Logger.getLogger("Salamander CEM")
-                            .info(
-                                "[" + (int) args[0].evaluate(c)
-                                    + "] "
-                                    + (bool ? Boolean.toString(CemFunctions.truth(value)) : Double.toString(value)));
+                        if (frame % interval == 0) log(
+                            "[" + (int) args[0].evaluate(c)
+                                + "] "
+                                + (bool ? Boolean.toString(CemFunctions.truth(value)) : Double.toString(value)));
                         return bool ? CemFunctions.bool(value) : value;
                     };
                 }
                 default:
+                    CemFunctions.Easing easing = CemFunctions.easing(name);
+                    if (easing != null) return c -> easing
+                        .ease((float) args[0].evaluate(c), (float) args[1].evaluate(c), (float) args[2].evaluate(c));
                     return fixed(args);
             }
         }

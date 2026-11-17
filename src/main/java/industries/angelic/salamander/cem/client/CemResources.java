@@ -167,6 +167,7 @@ public final class CemResources implements IResourceManagerReloadListener {
                         "CEM '{}' references missing {}; those parts keep only their own boxes",
                         resource,
                         loader.missingReferences());
+                for (String warning : model.warnings) Salamander.LOG.warn("CEM '{}': {}", resource, warning);
                 ResourceLocation texture = model.texture == null ? CemRuntime.texture() : model.texture;
                 entry = new Entry(model, texture, emissive(texture));
                 Salamander.LOG.info(

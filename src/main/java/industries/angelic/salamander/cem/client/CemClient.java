@@ -44,6 +44,7 @@ public final class CemClient {
 
     public static void clearAnimationState() {
         STATES.clear();
+        industries.angelic.salamander.cem.animation.CemVariables.GLOBAL.clear();
         CemPlayers.clear();
         CemPlayerSkins.clear();
         CemRuleFacts.clear();
@@ -63,6 +64,31 @@ public final class CemClient {
     public static CemModel.Instance handInstance(Object entity, CemModel model) {
         State state = STATES.computeIfAbsent(entity, ignored -> new State());
         return state.hands.computeIfAbsent(model, ignored -> model.newInstance(state.variables));
+    }
+
+    /** As EMF: the entity under the crosshair, or the block entity whose block the player looks at within reach. */
+    private static boolean hovered(Object subject) {
+        net.minecraft.util.MovingObjectPosition target = Minecraft.getMinecraft().objectMouseOver;
+        if (target == null) return false;
+        if (subject instanceof net.minecraft.entity.Entity) return target.entityHit == subject;
+        if (!(subject instanceof net.minecraft.tileentity.TileEntity)
+            || target.typeOfHit != net.minecraft.util.MovingObjectPosition.MovingObjectType.BLOCK) return false;
+        net.minecraft.tileentity.TileEntity tile = (net.minecraft.tileentity.TileEntity) subject;
+        return target.blockX == tile.xCoord && target.blockY == tile.yCoord && target.blockZ == tile.zCoord;
+    }
+
+    /**
+     * As EMF: the entity's height over the first block below it that can be stood on, measured to that block's base,
+     * so an entity standing on the ground reads 1.
+     */
+    private static double heightAboveGround(net.minecraft.entity.Entity entity) {
+        World world = entity.worldObj;
+        if (world == null) return 0;
+        int x = net.minecraft.util.MathHelper.floor_double(entity.posX),
+            y = net.minecraft.util.MathHelper.floor_double(entity.posY),
+            z = net.minecraft.util.MathHelper.floor_double(entity.posZ);
+        while (y > 0 && !World.doesBlockHaveSolidTopSurface(world, x, y, z)) y--;
+        return (float) entity.posY - y;
     }
 
     public static long frame() {
@@ -102,6 +128,12 @@ public final class CemClient {
             "is_paused",
             Minecraft.getMinecraft()
                 .isGamePaused() ? 1d : 0d);
+        // 0 first person, 1 third person behind, 2 third person in front.
+        int view = Minecraft.getMinecraft().gameSettings.thirdPersonView;
+        values.put("is_player_first_person", view == 0 ? 1d : 0d);
+        values.put("is_player_third_person", view == 1 ? 1d : 0d);
+        values.put("is_player_third_person_reversed", view == 2 ? 1d : 0d);
+        values.put("is_hovered", hovered(subject) ? 1d : 0d);
         nbt(subject, values);
         if (entity == null) {
             if (subject instanceof net.minecraft.tileentity.TileEntity) {
@@ -148,6 +180,7 @@ public final class CemClient {
             values.put("distance", Math.sqrt(dx * dx + dy * dy + dz * dz));
         }
         values.put("id", (double) entity.getEntityId());
+        values.put("height_above_ground", heightAboveGround(entity));
         if (living != null) {
             double[] movement = industries.angelic.salamander.cem.animation.CemMovement.direction(
                 entity.posX - entity.prevPosX,

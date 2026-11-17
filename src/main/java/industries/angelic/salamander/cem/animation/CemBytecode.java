@@ -144,6 +144,12 @@ public final class CemBytecode implements Opcodes {
                     value(assignment);
                     invoke(INVOKEVIRTUAL, VARIABLES, "set", "(ID)V");
                     break;
+                case CemSlot.GLOBAL:
+                    global();
+                    index(assignment.index);
+                    value(assignment);
+                    invoke(INVOKEVIRTUAL, VARIABLES, "set", "(ID)V");
+                    break;
                 default:
                     throw new IllegalArgumentException("CEM inputs are read-only");
             }
@@ -174,6 +180,17 @@ public final class CemBytecode implements Opcodes {
                 expression(unary.operand);
                 if (unary.operator == '!') function("not", "(D)D");
                 else insn(DNEG);
+            } else if (node instanceof CemSyntax.Catch && ((CemSyntax.Catch) node).label == null) {
+                // A labelled catch logs, so it stays interpreted; this one is a NaN check.
+                CemSyntax.Catch caught = (CemSyntax.Catch) node;
+                Label end = new Label();
+                expression(caught.value);
+                insn(DUP2);
+                function("isNaN", "(D)Z");
+                jump(IFEQ, end);
+                insn(POP2);
+                expression(caught.fallback);
+                method.visitLabel(end);
             } else if (node instanceof CemSyntax.Binary) binary((CemSyntax.Binary) node);
             else if (node instanceof CemSyntax.Call) call((CemSyntax.Call) node);
             else fallback(node.interpret());
@@ -302,11 +319,39 @@ public final class CemBytecode implements Opcodes {
                     method.visitLabel(end);
                     return;
                 }
+                case "randomb":
+                    if (args.length == 0) function("randomb", "()D");
+                    else {
+                        expression(args[0]);
+                        function("randomb", "(D)D");
+                    }
+                    return;
+                case "keyframe":
+                case "keyframeloop":
+                    expression(args[0]);
+                    index(args.length - 1);
+                    method.visitIntInsn(NEWARRAY, T_DOUBLE);
+                    size += 2;
+                    for (int i = 1; i < args.length; i++) {
+                        insn(DUP);
+                        index(i - 1);
+                        expression(args[i]);
+                        insn(DASTORE);
+                    }
+                    function(node.name, "(D[D)D");
+                    return;
                 case "print":
                 case "printb":
                     fallback(node.interpret());
                     return;
                 default:
+                    if (CemFunctions.easing(node.name) != null) {
+                        method.visitLdcInsn(node.name);
+                        size += 3;
+                        for (CemSyntax arg : args) expression(arg);
+                        function("ease", "(Ljava/lang/String;DDD)D");
+                        return;
+                    }
                     break;
             }
             for (CemSyntax arg : args) expression(arg);
@@ -355,6 +400,18 @@ public final class CemBytecode implements Opcodes {
                 case "lerp":
                     function(node.name, "(DDD)D");
                     return;
+                case "degdiff":
+                case "raddiff":
+                    function(node.name, "(DD)D");
+                    return;
+                case "quadbezier":
+                    function(node.name, "(DDDD)D");
+                    return;
+                case "catmullrom":
+                case "cubicbezier":
+                case "hermite":
+                    function(node.name, "(DDDDD)D");
+                    return;
                 default:
                     throw new IllegalStateException("No bytecode for CEM function " + node.name);
             }
@@ -383,6 +440,11 @@ public final class CemBytecode implements Opcodes {
                     index(slot.index);
                     invoke(INVOKEVIRTUAL, VARIABLES, "get", "(I)D");
                     return;
+                case CemSlot.GLOBAL:
+                    global();
+                    index(slot.index);
+                    invoke(INVOKEVIRTUAL, VARIABLES, "get", "(I)D");
+                    return;
                 default:
                     fallback(slot);
             }
@@ -400,6 +462,11 @@ public final class CemBytecode implements Opcodes {
             context();
             method.visitMethodInsn(INVOKEINTERFACE, EXPRESSION, "evaluate", "(L" + CONTEXT + ";)D", true);
             size += 5;
+        }
+
+        private void global() {
+            method.visitFieldInsn(GETSTATIC, VARIABLES, "GLOBAL", "L" + VARIABLES + ";");
+            size += 3;
         }
 
         private void context() {

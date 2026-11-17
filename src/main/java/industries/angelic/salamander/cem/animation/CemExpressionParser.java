@@ -104,6 +104,16 @@ public final class CemExpressionParser {
                 }
                 return new CemSyntax.Input(input);
             }
+            if (name.equals("catch") && take("(")) {
+                // EMF reads catch's optional third argument as a label for its log, not as an expression.
+                String[] arguments = rawArguments();
+                if (arguments.length < 2 || arguments.length > 3)
+                    throw error("catch requires a value, a fallback and an optional label");
+                return new CemSyntax.Catch(
+                    parse(arguments[0], resolver),
+                    parse(arguments[1], resolver),
+                    arguments.length == 3 && !arguments[2].isEmpty() ? arguments[2] : null);
+            }
             if (take("(")) {
                 List<CemSyntax> arguments = new ArrayList<>();
                 if (!take(")")) {
@@ -115,6 +125,8 @@ public final class CemExpressionParser {
                 return function(name, arguments.toArray(new CemSyntax[0]));
             }
             if (name.equals("pi")) return new CemSyntax.Constant(Math.PI);
+            if (name.equals("e")) return new CemSyntax.Constant(Math.E);
+            if (name.equals("nan")) return new CemSyntax.Constant(Double.NaN);
             if (name.equals("true")) return new CemSyntax.Constant(1);
             if (name.equals("false")) return new CemSyntax.Constant(0);
             CemExpression value = resolver.apply(name);
@@ -139,7 +151,12 @@ public final class CemExpressionParser {
                 if (count < 1) throw error("'" + name + "' requires arguments");
                 return new CemSyntax.Call(name, args);
             case "random":
-                if (count > 1) throw error("random accepts zero or one argument");
+            case "randomb":
+                if (count > 1) throw error(name + " accepts zero or one argument");
+                return new CemSyntax.Call(name, args);
+            case "keyframe":
+            case "keyframeloop":
+                if (count < 2) throw error(name + " requires a frame and at least one keyframe");
                 return new CemSyntax.Call(name, args);
             case "in":
                 if (count < 2) throw error("in requires at least two arguments");
@@ -158,7 +175,14 @@ public final class CemExpressionParser {
 
     /** Arguments of the fixed-arity functions, or -1 for an unknown name. */
     static int arity(String name) {
+        if (CemFunctions.easing(name) != null) return 3;
         switch (name) {
+            case "catmullrom":
+            case "cubicbezier":
+            case "hermite":
+                return 5;
+            case "quadbezier":
+                return 4;
             case "clamp":
             case "between":
             case "equals":
@@ -167,6 +191,8 @@ public final class CemExpressionParser {
             case "atan2":
             case "pow":
             case "fmod":
+            case "degdiff":
+            case "raddiff":
                 return 2;
             case "sin":
             case "cos":

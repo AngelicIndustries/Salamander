@@ -19,6 +19,9 @@ public final class CemVariables extends AbstractMap<String, Double> {
     private static final Map<String, Integer> SLOTS = new ConcurrentHashMap<>();
     private static final List<String> NAMES = new CopyOnWriteArrayList<>();
 
+    /** EMF's global variables, shared by every entity; cleared with the world. */
+    public static final CemVariables GLOBAL = new CemVariables();
+
     private double[] values = new double[16];
     private boolean[] present = new boolean[16];
     private int size;

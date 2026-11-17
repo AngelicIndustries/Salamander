@@ -105,7 +105,12 @@ public final class CemModel {
                 "is_swinging_left_arm",
                 "fluid_depth",
                 "fluid_depth_up",
-                "fluid_depth_down")));
+                "fluid_depth_down",
+                "height_above_ground",
+                "is_hovered",
+                "is_player_first_person",
+                "is_player_third_person",
+                "is_player_third_person_reversed")));
     public static final Set<String> RENDER_PROPERTIES = Collections.unmodifiableSet(
         new HashSet<>(
             Arrays.asList(
@@ -132,6 +137,11 @@ public final class CemModel {
     private final Map<String, Integer> inputSlots = new HashMap<>();
     /** The same program as bytecode; null when interpreted. */
     private final CemProgram compiled;
+    /**
+     * What was left out while loading, for the caller to log. As in EMF, an assignment to a part that does not exist or
+     * that cannot be parsed is dropped, and an unknown variable reads as 0; the rest of the model still works.
+     */
+    public final List<String> warnings = new ArrayList<>();
     private final double[] defaults;
     private final boolean[] animated;
     /** By node index: whether the node hangs from {@link #root}. A replaced parent drops some of its children. */
@@ -152,14 +162,37 @@ public final class CemModel {
         mark(root);
         List<CemBytecode.Assignment> assignments = new ArrayList<>();
         for (Animation animation : animations) {
-            Access target = access(animation.target, animation.owner, animation.part, true);
-            CemSyntax syntax = CemExpressionParser
-                .parse(animation.expression, name -> access(name, animation.owner, animation.part, false).reader());
+            Access target;
+            CemSyntax syntax;
+            try {
+                target = access(animation.target, animation.owner, animation.part, true);
+                syntax = CemExpressionParser.parse(animation.expression, name -> reader(name, animation));
+            } catch (IllegalArgumentException exception) {
+                // The caller logs the model's name already.
+                warn(
+                    exception.getMessage()
+                        .replace(source + ": ", "") + "; assignment ignored");
+                continue;
+            }
             program.add(new Assignment(target, syntax.interpret()));
             assignments.add(new CemBytecode.Assignment(target.kind, target.index, target.bool, syntax));
             if (target.kind == CemSlot.POSE) animated[target.index] = true;
         }
         compiled = compile(assignments);
+    }
+
+    /** As EMF: a name nothing provides reads as 0, which is also false. */
+    private CemExpression reader(String name, Animation animation) {
+        try {
+            return access(name, animation.owner, animation.part, false).reader();
+        } catch (IllegalArgumentException exception) {
+            warn("'" + name + "' in " + animation.target + " is unknown and reads as 0");
+            return c -> 0;
+        }
+    }
+
+    public void warn(String warning) {
+        if (!warnings.contains(warning)) warnings.add(warning);
     }
 
     private CemProgram compile(List<CemBytecode.Assignment> assignments) {
@@ -212,6 +245,8 @@ public final class CemModel {
         if (render >= 0) return new Access(CemSlot.RENDER, render, false);
         if (name.startsWith("var.") || name.startsWith("varb."))
             return new Access(CemSlot.VARIABLE, CemVariables.slot(name), name.startsWith("varb."));
+        if (name.startsWith("global_var.") || name.startsWith("global_varb."))
+            return new Access(CemSlot.GLOBAL, CemVariables.slot(name), name.startsWith("global_varb."));
         int dot = name.lastIndexOf('.');
         if (dot > 0) {
             Node node = find(name.substring(0, dot), self, part);
@@ -425,6 +460,9 @@ public final class CemModel {
                     break;
                 case CemSlot.RENDER:
                     context.renderValues[index] = value;
+                    break;
+                case CemSlot.GLOBAL:
+                    CemVariables.GLOBAL.set(index, value);
                     break;
                 default:
                     throw new IllegalStateException("CEM inputs are read-only");

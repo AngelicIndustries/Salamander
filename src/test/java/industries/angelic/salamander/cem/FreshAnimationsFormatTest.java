@@ -61,6 +61,7 @@ public class FreshAnimationsFormatTest {
                         entry.getName()
                             .substring("assets/minecraft/".length())),
                     parts);
+                assertTrue(entry.getName() + ": " + model.warnings, model.warnings.isEmpty());
                 CemModel.Instance instance = model.newInstance();
                 Map<String, Double> inputs = new HashMap<>();
                 inputs.put("id", 42d);

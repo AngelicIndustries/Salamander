@@ -14,6 +14,8 @@ public abstract class CemSlot implements CemExpression {
     public static final int INPUT = 2;
     /** A {@code render.*} property: {@code renderValues[index]}. */
     public static final int RENDER = 3;
+    /** EMF's {@code global_var.*} or {@code global_varb.*}, shared by every entity: {@link CemVariables#GLOBAL}. */
+    public static final int GLOBAL = 4;
 
     public final int kind;
     public final int index;
@@ -55,6 +57,14 @@ public abstract class CemSlot implements CemExpression {
                     @Override
                     public double evaluate(Context context) {
                         return context.renderValues[this.index];
+                    }
+                };
+            case GLOBAL:
+                return new CemSlot(kind, index) {
+
+                    @Override
+                    public double evaluate(Context context) {
+                        return CemVariables.GLOBAL.get(this.index);
                     }
                 };
             default:

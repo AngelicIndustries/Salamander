@@ -34,6 +34,8 @@ public final class CemLoader {
     private final List<CemModel.Animation> animations = new ArrayList<>();
     private final Map<String, CemModel.Node> originals = new LinkedHashMap<>();
     private final List<ResourceLocation> missing = new ArrayList<>();
+    /** Entries left out of the model, for its {@link CemModel#warnings}. */
+    private final List<String> warnings = new ArrayList<>();
 
     public CemLoader(Resources resources) {
         this.resources = resources;
@@ -78,15 +80,21 @@ public final class CemLoader {
                 String id = model.get("baseId")
                     .getAsString();
                 JsonObject base = bases.get(id);
-                if (base == null) throw new IllegalArgumentException(location + ": missing baseId '" + id + "'");
+                if (base == null) {
+                    warnings.add("model entry with missing baseId '" + id + "' skipped");
+                    continue;
+                }
                 inherit(model, base, true);
             }
             model = resolve(model, location, new ArrayDeque<>());
             String partName = model.get("part")
                 .getAsString();
             CemModel.Node parent = originals.get(partName);
-            if (parent == null)
-                throw new IllegalArgumentException(location + ": unsupported model part '" + partName + "'");
+            if (parent == null) {
+                // As EMF: a part this model does not have is left out, and animations reaching for it find nothing.
+                warnings.add("part '" + partName + "' is not in this model; skipped");
+                continue;
+            }
             if (!model.has("attach") || !model.get("attach")
                 .getAsBoolean()) {
                 parent.vanillaGeometry = false;
@@ -112,7 +120,9 @@ public final class CemLoader {
             .getAsFloat() : -1;
         if (!Float.isFinite(shadow) || shadow < -1)
             throw new IllegalArgumentException(location + ": invalid shadow size");
-        return new CemModel(location, texture, shadow, root, nodes, originals, animations);
+        CemModel model = new CemModel(location, texture, shadow, root, nodes, originals, animations);
+        model.warnings.addAll(0, warnings);
+        return model;
     }
 
     private CemModel.Node parsePart(JsonObject object, CemModel.Node original, int[] inheritedSize,
@@ -145,8 +155,10 @@ public final class CemLoader {
                     if (!attachment.getKey()
                         .equals("left_handheld_item")
                         && !attachment.getKey()
-                            .equals("right_handheld_item"))
-                        throw new IllegalArgumentException(source + ": unknown attachment " + attachment.getKey());
+                            .equals("right_handheld_item")) {
+                        warnings.add("attachment '" + attachment.getKey() + "' is not supported; ignored");
+                        continue;
+                    }
                     float[] point = vector(object.getAsJsonObject("attachments"), attachment.getKey(), 3, null);
                     for (int axis = 0; axis < 3; axis++)
                         if (invert.indexOf("xyz".charAt(axis)) >= 0) point[axis] = -point[axis];

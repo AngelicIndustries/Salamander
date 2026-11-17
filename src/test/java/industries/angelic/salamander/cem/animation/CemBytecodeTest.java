@@ -21,7 +21,11 @@ public class CemBytecodeTest {
         "frac(a) + signum(b)", "wraprad(a) + wrapdeg(b)", "pow(a, b)", "fmod(a, b)", "clamp(a, b, c)",
         "between(a, b, c)", "equals(a, b, c)", "lerp(a, b, c)", "random(a)", "pi * true - false + 1.5e2", "var.acc + a",
         "var.acc * 2", "varb.flag + b", "x.y", "print(1, 1000000, a + b)", "printb(2, 1000000, a)",
-        "if(in(a, 1, 2), max(b, if(c, 1, 2)), -min(a, c))" };
+        "if(in(a, 1, 2), max(b, if(c, 1, 2)), -min(a, c))", "keyframe(a, b, c, 1, 2.5)", "keyframeloop(a * 3, b, c, 4)",
+        "easeinoutexpo(a, b, c)", "easeoutbounce(a, b, c) + easeinoutbounce(a, b, c)", "easeinoutelastic(a, b, c)",
+        "cubiceaseout(a, b, c) + easein(a, b, c)", "catmullrom(a, b, c, 1, 2)", "hermite(a, b, c, 1, 2)",
+        "cubicbezier(a, b, c, 1, 2) + quadbezier(a, b, c, 1)", "degdiff(a, b) + raddiff(b, c)", "catch(a / b, 7)",
+        "catch(nan, c) + catch(a, b, label)", "randomb(a) + e + nan * 0", "global_var.g + 1" };
     private static final double[] VALUES = { 0, -0d, 1, -1, 0.5, 2.5, -3.7, Math.PI, 1e9, Double.NaN,
         Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY };
 
@@ -29,6 +33,7 @@ public class CemBytecodeTest {
         return name -> {
             if (name.startsWith("var.") || name.startsWith("varb."))
                 return CemSlot.of(CemSlot.VARIABLE, CemVariables.slot(name));
+            if (name.startsWith("global_var.")) return CemSlot.of(CemSlot.GLOBAL, CemVariables.slot(name));
             Integer input = inputs.get(name);
             if (input != null) return CemSlot.of(CemSlot.INPUT, input);
             // A resolved value the compiler does not know, as other callers' resolvers give.
