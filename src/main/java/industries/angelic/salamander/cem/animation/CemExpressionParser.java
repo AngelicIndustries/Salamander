@@ -2,10 +2,9 @@ package industries.angelic.salamander.cem.animation;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 import java.util.function.Function;
 
-/** Recursive-descent compiler with short-circuit boolean operators and lazy CEM conditionals. */
+/** Recursive-descent parser with short-circuit boolean operators and lazy CEM conditionals. */
 public final class CemExpressionParser {
 
     private final String source;
@@ -19,11 +18,17 @@ public final class CemExpressionParser {
         this.resolver = resolver;
     }
 
+    /** The interpreted expression. */
     public static CemExpression compile(String source, Function<String, CemExpression> resolver) {
+        return parse(source, resolver).interpret();
+    }
+
+    /** The syntax tree, for the interpreter or {@link CemBytecode}. */
+    public static CemSyntax parse(String source, Function<String, CemExpression> resolver) {
         if (source == null || source.length() > 65536)
             throw new IllegalArgumentException("Invalid CEM expression size");
         CemExpressionParser parser = new CemExpressionParser(source, resolver);
-        CemExpression expression = parser.binary(0);
+        CemSyntax expression = parser.binary(0);
         parser.space();
         if (parser.position != source.length()) throw parser.error("Unexpected token");
         return expression;
@@ -32,9 +37,9 @@ public final class CemExpressionParser {
     private static final String[][] OPERATORS = { { "||" }, { "&&" }, { "==", "!=" }, { ">=", "<=", ">", "<" },
         { "+", "-" }, { "*", "/", "%" } };
 
-    private CemExpression binary(int precedence) {
+    private CemSyntax binary(int precedence) {
         if (precedence == OPERATORS.length) return unary();
-        CemExpression value = binary(precedence + 1);
+        CemSyntax value = binary(precedence + 1);
         while (true) {
             String found = null;
             for (String operator : OPERATORS[precedence]) {
@@ -44,70 +49,19 @@ public final class CemExpressionParser {
                 }
             }
             if (found == null) return value;
-            CemExpression left = value;
-            CemExpression right = binary(precedence + 1);
-            switch (found) {
-                case "||":
-                    value = c -> truth(left.evaluate(c)) || truth(right.evaluate(c)) ? 1 : 0;
-                    break;
-                case "&&":
-                    value = c -> truth(left.evaluate(c)) && truth(right.evaluate(c)) ? 1 : 0;
-                    break;
-                // CEM numeric comparisons use float precision, matching native model poses.
-                case "==":
-                    value = c -> (float) left.evaluate(c) == (float) right.evaluate(c) ? 1 : 0;
-                    break;
-                case "!=":
-                    value = c -> (float) left.evaluate(c) != (float) right.evaluate(c) ? 1 : 0;
-                    break;
-                case ">=":
-                    value = c -> (float) left.evaluate(c) >= (float) right.evaluate(c) ? 1 : 0;
-                    break;
-                case "<=":
-                    value = c -> (float) left.evaluate(c) <= (float) right.evaluate(c) ? 1 : 0;
-                    break;
-                case ">":
-                    value = c -> (float) left.evaluate(c) > (float) right.evaluate(c) ? 1 : 0;
-                    break;
-                case "<":
-                    value = c -> (float) left.evaluate(c) < (float) right.evaluate(c) ? 1 : 0;
-                    break;
-                case "+":
-                    value = c -> left.evaluate(c) + right.evaluate(c);
-                    break;
-                case "-":
-                    value = c -> left.evaluate(c) - right.evaluate(c);
-                    break;
-                case "*":
-                    value = c -> left.evaluate(c) * right.evaluate(c);
-                    break;
-                case "/":
-                    value = c -> left.evaluate(c) / right.evaluate(c);
-                    break;
-                case "%":
-                    value = c -> left.evaluate(c) % right.evaluate(c);
-                    break;
-                default:
-                    throw error("Unknown operator");
-            }
+            value = new CemSyntax.Binary(found, value, binary(precedence + 1));
         }
     }
 
-    private CemExpression unary() {
+    private CemSyntax unary() {
         if (++values > 512) throw error("Expression exceeds 512 values/operators");
         if (++depth > 128) throw error("Expression nesting exceeds 128");
         try {
-            if (take("!")) {
-                CemExpression value = unary();
-                return c -> truth(value.evaluate(c)) ? 0 : 1;
-            }
-            if (take("-")) {
-                CemExpression value = unary();
-                return c -> -value.evaluate(c);
-            }
+            if (take("!")) return new CemSyntax.Unary('!', unary());
+            if (take("-")) return new CemSyntax.Unary('-', unary());
             if (take("+")) return unary();
             if (take("(")) {
-                CemExpression value = binary(0);
+                CemSyntax value = binary(0);
                 expect(")");
                 return value;
             }
@@ -130,7 +84,7 @@ public final class CemExpressionParser {
                     throw error("Invalid number");
                 }
                 if (!Double.isFinite(number)) throw error("Non-finite number");
-                return c -> number;
+                return new CemSyntax.Constant(number);
             }
             while (position < source.length()) {
                 char ch = source.charAt(position);
@@ -148,90 +102,72 @@ public final class CemExpressionParser {
                 } catch (IllegalArgumentException exception) {
                     throw error(exception.getMessage());
                 }
-                return c -> c.inputs.getOrDefault(input, 0d);
+                return new CemSyntax.Input(input);
             }
             if (take("(")) {
-                List<CemExpression> arguments = new ArrayList<>();
+                List<CemSyntax> arguments = new ArrayList<>();
                 if (!take(")")) {
                     do {
                         arguments.add(binary(0));
                     } while (take(","));
                     expect(")");
                 }
-                return function(name, arguments.toArray(new CemExpression[0]));
+                return function(name, arguments.toArray(new CemSyntax[0]));
             }
-            if (name.equals("pi")) return c -> Math.PI;
-            if (name.equals("true")) return c -> 1;
-            if (name.equals("false")) return c -> 0;
+            if (name.equals("pi")) return new CemSyntax.Constant(Math.PI);
+            if (name.equals("true")) return new CemSyntax.Constant(1);
+            if (name.equals("false")) return new CemSyntax.Constant(0);
             CemExpression value = resolver.apply(name);
             if (value == null) throw error("Unknown variable '" + name + "'");
-            return value;
+            return new CemSyntax.Reference(value);
         } finally {
             depth--;
         }
     }
 
-    private CemExpression function(String name, CemExpression[] args) {
+    /** Checks the arity; {@link CemSyntax.Call} interprets it and {@link CemBytecode} compiles it. */
+    private CemSyntax function(String name, CemSyntax[] args) {
         int count = args.length;
-        if (name.equals("if") || name.equals("ifb")) {
-            if (count < 3 || count % 2 != 1)
-                throw error("'" + name + "' requires condition/value pairs and an else value");
-            return c -> {
-                for (int i = 0; i < count - 1; i += 2) {
-                    if (truth(args[i].evaluate(c))) return args[i + 1].evaluate(c);
-                }
-                return args[count - 1].evaluate(c);
-            };
+        switch (name) {
+            case "if":
+            case "ifb":
+                if (count < 3 || count % 2 != 1)
+                    throw error("'" + name + "' requires condition/value pairs and an else value");
+                return new CemSyntax.Call(name, args);
+            case "min":
+            case "max":
+                if (count < 1) throw error("'" + name + "' requires arguments");
+                return new CemSyntax.Call(name, args);
+            case "random":
+                if (count > 1) throw error("random accepts zero or one argument");
+                return new CemSyntax.Call(name, args);
+            case "in":
+                if (count < 2) throw error("in requires at least two arguments");
+                return new CemSyntax.Call(name, args);
+            case "print":
+            case "printb":
+                if (count != 3) throw error(name + " requires id, frame interval, and value");
+                return new CemSyntax.Call(name, args);
+            default:
+                int required = arity(name);
+                if (required < 0) throw error("Unsupported function '" + name + "'");
+                if (count != required) throw error("'" + name + "' requires " + required + " arguments");
+                return new CemSyntax.Call(name, args);
         }
-        if (name.equals("min") || name.equals("max")) {
-            if (count < 1) throw error("'" + name + "' requires arguments");
-            return c -> {
-                double value = args[0].evaluate(c);
-                for (int i = 1; i < count; i++) value = name.equals("min") ? Math.min(value, args[i].evaluate(c))
-                    : Math.max(value, args[i].evaluate(c));
-                return value;
-            };
-        }
-        if (name.equals("random")) {
-            if (count > 1) throw error("random accepts zero or one argument");
-            return count == 0 ? c -> Math.random() : c -> new Random((long) args[0].evaluate(c)).nextFloat();
-        }
-        if (name.equals("in")) {
-            if (count < 2) throw error("in requires at least two arguments");
-            return c -> {
-                float value = (float) args[0].evaluate(c);
-                for (int i = 1; i < count; i++) if (value == (float) args[i].evaluate(c)) return 1;
-                return 0;
-            };
-        }
-        if (name.equals("print") || name.equals("printb")) {
-            if (count != 3) throw error(name + " requires id, frame interval, and value");
-            return c -> {
-                double value = args[2].evaluate(c);
-                long interval = Math.max(1, (long) args[1].evaluate(c));
-                long frame = c.inputs.getOrDefault("frame_counter", 0d)
-                    .longValue();
-                if (frame % interval == 0) java.util.logging.Logger.getLogger("Salamander CEM")
-                    .info(
-                        "[" + (int) args[0].evaluate(c)
-                            + "] "
-                            + (name.equals("printb") ? Boolean.toString(truth(value)) : Double.toString(value)));
-                return name.equals("printb") ? (truth(value) ? 1 : 0) : value;
-            };
-        }
-        int required;
+    }
+
+    /** Arguments of the fixed-arity functions, or -1 for an unknown name. */
+    static int arity(String name) {
         switch (name) {
             case "clamp":
             case "between":
             case "equals":
             case "lerp":
-                required = 3;
-                break;
+                return 3;
             case "atan2":
             case "pow":
             case "fmod":
-                required = 2;
-                break;
+                return 2;
             case "sin":
             case "cos":
             case "tan":
@@ -251,73 +187,10 @@ public final class CemExpressionParser {
             case "signum":
             case "wraprad":
             case "wrapdeg":
-                required = 1;
-                break;
+                return 1;
             default:
-                throw error("Unsupported function '" + name + "'");
+                return -1;
         }
-        if (count != required) throw error("'" + name + "' requires " + required + " arguments");
-        return c -> {
-            double x = args[0].evaluate(c);
-            double y = count > 1 ? args[1].evaluate(c) : 0;
-            double z = count > 2 ? args[2].evaluate(c) : 0;
-            switch (name) {
-                case "sin":
-                    return Math.sin(x);
-                case "cos":
-                    return Math.cos(x);
-                case "tan":
-                    return Math.tan(x);
-                case "asin":
-                    return Math.asin(x);
-                case "acos":
-                    return Math.acos(x);
-                case "atan":
-                    return Math.atan(x);
-                case "atan2":
-                    return Math.atan2(x, y);
-                case "torad":
-                    return Math.toRadians(x);
-                case "todeg":
-                    return Math.toDegrees(x);
-                case "abs":
-                    return Math.abs(x);
-                case "floor":
-                    return Math.floor(x);
-                case "ceil":
-                    return Math.ceil(x);
-                case "round":
-                    return Math.round(x);
-                case "sqrt":
-                    return Math.sqrt(x);
-                case "exp":
-                    return Math.exp(x);
-                case "log":
-                    return Math.log(x);
-                case "frac":
-                    return x - Math.floor(x);
-                case "wraprad":
-                    return wrap(x, Math.PI);
-                case "wrapdeg":
-                    return wrap(x, 180);
-                case "signum":
-                    return Math.signum(x);
-                case "pow":
-                    return Math.pow(x, y);
-                case "fmod":
-                    return x - y * Math.floor(x / y);
-                case "clamp":
-                    return Math.max(y, Math.min(z, x));
-                case "between":
-                    return (float) x >= (float) y && (float) x <= (float) z ? 1 : 0;
-                case "equals":
-                    return Math.abs((float) x - (float) y) <= (float) z ? 1 : 0;
-                case "lerp":
-                    return y + x * (z - y);
-                default:
-                    throw new IllegalStateException(name);
-            }
-        };
     }
 
     /** Arguments taken as text up to the closing parenthesis, split at top-level commas, as EMF reads nbt(). */
@@ -347,15 +220,8 @@ public final class CemExpressionParser {
         throw error("Expected ')'");
     }
 
-    private static double wrap(double value, double halfTurn) {
-        double wrapped = value % (2 * halfTurn);
-        if (wrapped >= halfTurn) wrapped -= 2 * halfTurn;
-        if (wrapped < -halfTurn) wrapped += 2 * halfTurn;
-        return wrapped;
-    }
-
     public static boolean truth(double value) {
-        return value != 0 && !Double.isNaN(value);
+        return CemFunctions.truth(value);
     }
 
     private boolean take(String token) {

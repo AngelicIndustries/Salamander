@@ -25,6 +25,10 @@ public final class CemConfig {
     @Config.DefaultBoolean(true)
     public static boolean emissiveTextures = true;
 
+    @Config.Comment("Compile resource-pack animations to JVM bytecode instead of interpreting them. Same results, less CPU per animated model. Reload resources after changing.")
+    @Config.DefaultBoolean(true)
+    public static boolean compiledAnimations = true;
+
     @Config.Comment("Optionally synchronize mob aggression and melee attacks to clients supporting Salamander CEM. Does not change gameplay.")
     @Config.DefaultBoolean(true)
     public static boolean serverAnimationSignals = true;
