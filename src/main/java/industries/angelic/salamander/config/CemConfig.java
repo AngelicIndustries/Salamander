@@ -29,6 +29,10 @@ public final class CemConfig {
     @Config.DefaultBoolean(true)
     public static boolean compiledAnimations = true;
 
+    @Config.Comment("Draw each part tree of a pack model in as few draws as possible, transforming the parts on the CPU. Same image, less CPU. Player models with skin layers keep per-part draws.")
+    @Config.DefaultBoolean(true)
+    public static boolean batchedGeometry = true;
+
     @Config.Comment("Optionally synchronize mob aggression and melee attacks to clients supporting Salamander CEM. Does not change gameplay.")
     @Config.DefaultBoolean(true)
     public static boolean serverAnimationSignals = true;

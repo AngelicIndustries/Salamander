@@ -24,6 +24,8 @@ public final class CemGeometry {
     /** Boxes that are vanilla skin overlay pieces, which Wawel Auth may draw in their place. */
     private final List<List<OverlayBox>> overlays = new ArrayList<>();
     private Map<String, List<Slice>> slices;
+    /** Whether any box is a skin overlay piece. Those models keep per-part GL draws, as skin layers need them. */
+    private final boolean overlaid;
 
     public CemGeometry(CemModel model) {
         this.model = model;
@@ -45,6 +47,9 @@ public final class CemGeometry {
             faces.add(part);
             overlays.add(pieces);
         }
+        boolean any = false;
+        for (List<OverlayBox> pieces : overlays) any |= !pieces.isEmpty();
+        overlaid = any;
     }
 
     public void renderNativePart(CemModel.Node node, double[] pose, Map<String, ModelRenderer> vanilla, float scale,
@@ -96,10 +101,20 @@ public final class CemGeometry {
         boolean normalized = GL11.glIsEnabled(GL11.GL_NORMALIZE);
         GL11.glEnable(GL11.GL_NORMALIZE);
         try {
-            if (selected != null) net.minecraft.client.Minecraft.getMinecraft()
-                .getTextureManager()
-                .bindTexture(selected);
-            renderPart(node, pose, vanilla, scale, rotationOrder, selected, eyes, model.texture == null && !eyes);
+            if (industries.angelic.salamander.config.CemConfig.batchedGeometry && !overlaid && !CemPartBatch.active()) {
+                CemPartBatch.begin();
+                try {
+                    CemPartBatch.texture(selected);
+                    renderBatched(node, pose, vanilla, scale, rotationOrder, selected, eyes);
+                } finally {
+                    CemPartBatch.end();
+                }
+            } else {
+                if (selected != null) net.minecraft.client.Minecraft.getMinecraft()
+                    .getTextureManager()
+                    .bindTexture(selected);
+                renderPart(node, pose, vanilla, scale, rotationOrder, selected, eyes, model.texture == null && !eyes);
+            }
         } finally {
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, previous);
             CemRuntime.texture(previousResource);
@@ -209,6 +224,48 @@ public final class CemGeometry {
         }
     }
 
+    /** {@link #renderPart} with the parts' transforms on the CPU and their faces gathered into shared draws. */
+    private void renderBatched(CemModel.Node node, double[] pose, Map<String, ModelRenderer> vanilla, float scale,
+        boolean rotationOrder, net.minecraft.util.ResourceLocation inherited, boolean eyes) {
+        int offset = node.index * CemModel.STRIDE;
+        if (pose[offset + 9] == 0) return;
+        CemPartBatch.push();
+        try {
+            ModelRenderer nativePart = vanilla.get(node.vanillaPart);
+            if (nativePart != null) CemPartBatch.translate(nativePart.offsetX, nativePart.offsetY, nativePart.offsetZ);
+            CemPartBatch.transform(node, pose, scale, rotationOrder);
+            net.minecraft.util.ResourceLocation selected = node.texture == null ? inherited
+                : eyes ? CemResources.INSTANCE.emissive(node.texture) : node.texture;
+            CemPartBatch.texture(selected);
+            if (pose[offset + 10] != 0 && (!eyes || selected != null)) {
+                if (!eyes && node.vanillaGeometry
+                    && CemBoatChest.part(node.vanillaPart)
+                    && !vanilla.containsKey(node.vanillaPart))
+                    CemPartBatch.inGl(() -> CemBoatChest.render(node.vanillaPart, scale));
+                drawBatched(node, vanilla, scale, selected);
+                if (!eyes && CemResources.INSTANCE.emissive(selected) != null) {
+                    // The emissive pass sets its own GL state and binds its mask: it draws on its own.
+                    CemPartBatch.flush();
+                    CemEmissive.render(selected, () -> {
+                        drawBatched(node, vanilla, scale, selected);
+                        CemPartBatch.flush();
+                    });
+                    CemPartBatch.forgetTexture();
+                }
+            }
+            for (CemModel.Node child : node.children) renderBatched(child, pose, vanilla, scale, false, selected, eyes);
+        } finally {
+            CemPartBatch.pop();
+        }
+    }
+
+    private void drawBatched(CemModel.Node node, Map<String, ModelRenderer> vanilla, float scale,
+        net.minecraft.util.ResourceLocation texture) {
+        ModelRenderer original = node.vanillaGeometry ? vanilla.get(node.vanillaPart) : null;
+        if (original != null) CemPartBatch.inGl(() -> drawNative(node, original, vanilla, scale, texture));
+        CemPartBatch.add(faces.get(node.index), scale);
+    }
+
     private static boolean dragonMirror(CemModel.Node node, Map<String, ModelRenderer> vanilla) {
         return CemBinding.rightDragonPart(node.vanillaPart) && vanilla.containsKey("neck5")
             && vanilla.get("left_wing") == vanilla.get("right_wing");
@@ -218,34 +275,38 @@ public final class CemGeometry {
     private void drawGeometry(CemModel.Node node, Map<String, ModelRenderer> vanilla, float scale,
         net.minecraft.util.ResourceLocation texture, boolean skin) {
         ModelRenderer original = node.vanillaGeometry ? vanilla.get(node.vanillaPart) : null;
-        if (original != null) {
-            int previousTexture = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
-            net.minecraft.util.ResourceLocation previousResource = CemRuntime.texture();
-            net.minecraft.util.ResourceLocation nativeTexture = CemPlayerSkins.nativeTexture(texture, original);
-            if (nativeTexture != null && !nativeTexture.equals(texture)) net.minecraft.client.Minecraft.getMinecraft()
-                .getTextureManager()
-                .bindTexture(nativeTexture);
-            boolean mirrored = dragonMirror(node, vanilla);
-            if (mirrored) {
-                GL11.glPushMatrix();
-                GL11.glPushAttrib(GL11.GL_POLYGON_BIT);
-                GL11.glScalef(-1, 1, 1);
-                GL11.glCullFace(GL11.GL_FRONT);
-            }
-            try {
-                for (ModelBox box : original.cubeList) box.render(Tessellator.instance, scale);
-            } finally {
-                GL11.glBindTexture(GL11.GL_TEXTURE_2D, previousTexture);
-                CemRuntime.texture(previousResource);
-                if (mirrored) {
-                    GL11.glPopAttrib();
-                    GL11.glPopMatrix();
-                }
-            }
-        }
+        if (original != null) drawNative(node, original, vanilla, scale, texture);
         draw(faces.get(node.index), scale);
         for (OverlayBox piece : overlays.get(node.index))
             if (!skin || !CemLayers.submit(piece.overlay)) draw(piece.faces, scale);
+    }
+
+    /** A part keeping its native boxes, drawn by the native model code under the current GL matrix. */
+    private static void drawNative(CemModel.Node node, ModelRenderer original, Map<String, ModelRenderer> vanilla,
+        float scale, net.minecraft.util.ResourceLocation texture) {
+        int previousTexture = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+        net.minecraft.util.ResourceLocation previousResource = CemRuntime.texture();
+        net.minecraft.util.ResourceLocation nativeTexture = CemPlayerSkins.nativeTexture(texture, original);
+        if (nativeTexture != null && !nativeTexture.equals(texture)) net.minecraft.client.Minecraft.getMinecraft()
+            .getTextureManager()
+            .bindTexture(nativeTexture);
+        boolean mirrored = dragonMirror(node, vanilla);
+        if (mirrored) {
+            GL11.glPushMatrix();
+            GL11.glPushAttrib(GL11.GL_POLYGON_BIT);
+            GL11.glScalef(-1, 1, 1);
+            GL11.glCullFace(GL11.GL_FRONT);
+        }
+        try {
+            for (ModelBox box : original.cubeList) box.render(Tessellator.instance, scale);
+        } finally {
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, previousTexture);
+            CemRuntime.texture(previousResource);
+            if (mirrored) {
+                GL11.glPopAttrib();
+                GL11.glPopMatrix();
+            }
+        }
     }
 
     private static void draw(List<float[]> geometry, float scale) {
