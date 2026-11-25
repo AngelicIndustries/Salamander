@@ -16,11 +16,16 @@ import industries.angelic.salamander.cem.model.CemBoxMesh;
 import industries.angelic.salamander.cem.model.CemModel;
 import industries.angelic.salamander.cem.model.CemSpriteMesh;
 
-/** Baked box vertices rendered through the vanilla Tessellator, with no Angelica dependency or GPU cache. */
+/**
+ * Baked box vertices, drawn through the vanilla Tessellator, or handed to Angelica's entity batcher as model parts
+ * where the renderer drawing them batches (see {@link CemAngelicaBatch}).
+ */
 public final class CemGeometry {
 
     private final CemModel model;
     private final List<List<float[]>> faces = new ArrayList<>();
+    /** Each node's faces as a part Angelica's batcher can take. */
+    private final List<CemProxyPart> proxies = new ArrayList<>();
     /** Boxes that are vanilla skin overlay pieces, which Wawel Auth may draw in their place. */
     private final List<List<OverlayBox>> overlays = new ArrayList<>();
     private Map<String, List<Slice>> slices;
@@ -55,6 +60,7 @@ public final class CemGeometry {
             }
             for (CemModel.Box sprite : node.sprites) part.addAll(new CemSpriteMesh(sprite).faces);
             faces.add(part);
+            proxies.add(new CemProxyPart(part));
             overlays.add(pieces);
             attachments.addAll(node.attachments.keySet());
         }
@@ -114,13 +120,18 @@ public final class CemGeometry {
         boolean normalized = GL11.glIsEnabled(GL11.GL_NORMALIZE);
         GL11.glEnable(GL11.GL_NORMALIZE);
         try {
-            if (industries.angelic.salamander.config.CemConfig.batchedGeometry && !overlaid && !CemPartBatch.active()) {
+            // Where Angelica batches the renderer, each part goes to its batcher; it batches better than we do.
+            if (industries.angelic.salamander.config.CemConfig.batchedGeometry && !overlaid
+                && !CemPartBatch.active()
+                && !batching()) {
+                long before = drawCount();
                 CemPartBatch.begin();
                 try {
                     if (!glint(selected)) CemPartBatch.texture(selected);
                     renderBatched(node, pose, vanilla, scale, rotationOrder, selected, eyes);
                 } finally {
                     CemPartBatch.end();
+                    drawn(before);
                 }
             } else {
                 if (selected != null && !glint(selected)) net.minecraft.client.Minecraft.getMinecraft()
@@ -129,8 +140,7 @@ public final class CemGeometry {
                 renderPart(node, pose, vanilla, scale, rotationOrder, selected, eyes, model.texture == null && !eyes);
             }
         } finally {
-            GL11.glBindTexture(GL11.GL_TEXTURE_2D, previous);
-            CemRuntime.texture(previousResource);
+            restoreTexture(previous, previousResource);
             if (!normalized) GL11.glDisable(GL11.GL_NORMALIZE);
         }
     }
@@ -228,15 +238,14 @@ public final class CemGeometry {
             if (pose[offset + 10] != 0 && (!eyes || selected != null)) {
                 if (!eyes && node.vanillaGeometry
                     && CemBoatChest.part(node.vanillaPart)
-                    && !vanilla.containsKey(node.vanillaPart)) CemBoatChest.render(node.vanillaPart, scale);
+                    && !vanilla.containsKey(node.vanillaPart)) live(() -> CemBoatChest.render(node.vanillaPart, scale));
                 drawGeometry(node, vanilla, scale, selected, ownSkin);
                 if (!eyes) CemEmissive.render(selected, () -> drawGeometry(node, vanilla, scale, selected, false));
             }
             for (CemModel.Node child : node.children)
                 renderPart(child, pose, vanilla, scale, false, selected, eyes, ownSkin);
         } finally {
-            GL11.glBindTexture(GL11.GL_TEXTURE_2D, previousTexture);
-            CemRuntime.texture(previousResource);
+            restoreTexture(previousTexture, previousResource);
             GL11.glPopMatrix();
         }
     }
@@ -305,9 +314,19 @@ public final class CemGeometry {
         net.minecraft.util.ResourceLocation texture, boolean skin) {
         ModelRenderer original = node.vanillaGeometry ? vanilla.get(node.vanillaPart) : null;
         if (original != null) drawNative(node, original, vanilla, scale, texture);
-        draw(faces.get(node.index), scale);
+        drawFaces(proxies.get(node.index), scale);
         for (OverlayBox piece : overlays.get(node.index))
-            if (!skin || !CemLayers.submit(piece.overlay)) draw(piece.faces, scale);
+            if (!skin || !submit(piece.overlay)) drawFaces(piece.proxy, scale);
+    }
+
+    /** Wawel Auth draws a skin overlay piece at once, reported to Angelica as {@link #drawn}. */
+    private static boolean submit(CemOverlays.Overlay overlay) {
+        long before = drawCount();
+        try {
+            return CemLayers.submit(overlay);
+        } finally {
+            drawn(before);
+        }
     }
 
     /** A part keeping its native boxes, drawn by the native model code under the current GL matrix. */
@@ -327,10 +346,13 @@ public final class CemGeometry {
             GL11.glCullFace(GL11.GL_FRONT);
         }
         try {
-            for (ModelBox box : original.cubeList) box.render(Tessellator.instance, scale);
+            if (!angelica() || !CemAngelicaBatch.queue(original, scale)) {
+                long before = drawCount();
+                drawBoxes(original, scale);
+                drawn(before);
+            }
         } finally {
-            GL11.glBindTexture(GL11.GL_TEXTURE_2D, previousTexture);
-            CemRuntime.texture(previousResource);
+            restoreTexture(previousTexture, previousResource);
             if (mirrored) {
                 GL11.glPopAttrib();
                 GL11.glPopMatrix();
@@ -338,9 +360,97 @@ public final class CemGeometry {
         }
     }
 
-    private static void draw(List<float[]> geometry, float scale) {
+    private static void drawBoxes(ModelRenderer part, float scale) {
+        for (ModelBox box : part.cubeList) box.render(Tessellator.instance, scale);
+    }
+
+    /** A part's faces: queued with Angelica's batcher where it takes them, else drawn at once. */
+    private static void drawFaces(CemProxyPart part, float scale) {
+        if (part.faces.isEmpty() || angelica() && CemAngelicaBatch.queue(part, scale)) return;
+        long before = drawCount();
+        tessellate(Tessellator.instance, part.faces, scale);
+        drawn(before);
+    }
+
+    /** A native part's compiled display list, as its emissive pass draws it: queued or drawn as {@link #drawFaces}. */
+    static void drawList(ModelRenderer part, int displayList, float scale) {
+        if (angelica() && CemAngelicaBatch.queue(part, scale)) return;
+        long before = drawCount();
+        GL11.glCallList(displayList);
+        drawn(before);
+    }
+
+    /** Draws something at once, reported to Angelica as {@link #drawn}. */
+    private static void live(Runnable drawing) {
+        long before = drawCount();
+        drawing.run();
+        drawn(before);
+    }
+
+    private static long drawCount() {
+        return angelicaLoaded() ? CemAngelicaBatch.draws() : 0;
+    }
+
+    /**
+     * Reports what was drawn at once since {@code before} to Angelica as a part it could not take, as it reports its
+     * own, whether or not parts go to its batcher: a renderer it batches then stops batching, and one it has yet to
+     * judge counts these draws as its own.
+     */
+    private static void drawn(long before) {
+        if (angelicaLoaded()) CemAngelicaBatch.fallback(before);
+    }
+
+    private static Boolean angelicaLoaded;
+
+    /** Whether pack model parts may go to Angelica's batcher: it is there, with the API, and the option is on. */
+    static boolean angelica() {
+        return angelicaLoaded() && industries.angelic.salamander.config.CemConfig.angelicaBatching;
+    }
+
+    /** Whether Angelica is there with the batching API. */
+    private static boolean angelicaLoaded() {
+        if (angelicaLoaded == null) {
+            boolean loaded;
+            try {
+                loaded = cpw.mods.fml.common.Loader.isModLoaded("angelica") && Class.forName(
+                    "com.gtnewhorizons.angelica.api.tesr.ModelPartBatch",
+                    false,
+                    CemGeometry.class.getClassLoader()) != null;
+            } catch (ClassNotFoundException | RuntimeException | LinkageError exception) {
+                loaded = false;
+            }
+            angelicaLoaded = loaded;
+        }
+        return angelicaLoaded;
+    }
+
+    /** Whether the renderer drawing now hands its parts to Angelica's batcher. */
+    static boolean batching() {
+        return angelica() && CemAngelicaBatch.allowed();
+    }
+
+    /**
+     * Puts back a texture bound before. Through the texture manager when the recorded one is it, so Angelica's batcher
+     * still knows which texture is bound; it only follows binds made there.
+     */
+    static void restoreTexture(int previous, net.minecraft.util.ResourceLocation previousResource) {
+        if (previousResource != null) {
+            net.minecraft.client.renderer.texture.TextureManager textures = net.minecraft.client.Minecraft
+                .getMinecraft()
+                .getTextureManager();
+            net.minecraft.client.renderer.texture.ITextureObject object = textures
+                .getTexture(CemRandomTextures.resolve(previousResource));
+            if (object != null && object.getGlTextureId() == previous) {
+                textures.bindTexture(previousResource);
+                return;
+            }
+        }
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, previous);
+        CemRuntime.texture(previousResource);
+    }
+
+    static void tessellate(Tessellator tessellator, List<float[]> geometry, float scale) {
         if (geometry.isEmpty()) return;
-        Tessellator tessellator = Tessellator.instance;
         tessellator.startDrawingQuads();
         for (float[] face : geometry) {
             tessellator.setNormal(face[20], face[21], face[22]);
@@ -358,6 +468,7 @@ public final class CemGeometry {
 
         final CemOverlays.Overlay overlay;
         final List<float[]> faces = new ArrayList<>();
+        final CemProxyPart proxy = new CemProxyPart(faces);
 
         OverlayBox(CemOverlays.Overlay overlay) {
             this.overlay = overlay;

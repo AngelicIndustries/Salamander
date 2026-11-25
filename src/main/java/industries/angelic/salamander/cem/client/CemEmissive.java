@@ -31,25 +31,37 @@ final class CemEmissive {
         if (subject instanceof net.minecraft.entity.Entity && ((net.minecraft.entity.Entity) subject).isInvisible())
             return;
         GlStateSnapshot state = GlStateSnapshot.capture();
-        boolean angelica = Loader.isModLoaded("angelica");
-        Object condition = angelica ? CemBedShaders.beginEyes() : null;
+        boolean offset = GL11.glIsEnabled(GL11.GL_POLYGON_OFFSET_FILL);
+        float factor = GL11.glGetFloat(GL11.GL_POLYGON_OFFSET_FACTOR),
+            units = GL11.glGetFloat(GL11.GL_POLYGON_OFFSET_UNITS);
+        boolean angelica = Loader.isModLoaded("angelica"), batching = CemGeometry.batching();
         try {
-            GL11.glEnable(GL11.GL_BLEND);
-            GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-            GL11.glDisable(GL11.GL_LIGHTING);
+            // As ETF draws a mask by default: the model's cutout layer again, at full light. A shader pack draws it
+            // as entity geometry too, opaque where the mask is, rather than as glowing eyes it may blend additively.
+            GL11.glDisable(GL11.GL_BLEND);
+            GL11.glEnable(GL11.GL_ALPHA_TEST);
+            GL11.glAlphaFunc(GL11.GL_GREATER, 0.1F);
+            GL11.glDepthFunc(GL11.GL_LEQUAL);
             GL11.glDepthMask(false);
+            // The same faces again: pulled toward the camera, so they never lose to the base pass, whatever jitter a
+            // shader pack's anti-aliasing adds.
+            GL11.glEnable(GL11.GL_POLYGON_OFFSET_FILL);
+            GL11.glPolygonOffset(-1, -1);
+            GL11.glDisable(GL11.GL_LIGHTING);
             GL11.glColor4f(1, 1, 1, 1);
             OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, 240, 240);
             Minecraft.getMinecraft()
                 .getTextureManager()
                 .bindTexture(mask);
-            if (angelica) CemBedShaders.settle();
+            // Parts queued with Angelica's batcher take the state along; parts drawn at once need its program now.
+            if (angelica && !batching) CemBedShaders.settle();
             geometry.run();
         } finally {
-            if (angelica) CemBedShaders.endEyes(condition);
             state.restore();
-            if (angelica) CemBedShaders.settle();
-            CemRuntime.texture(texture);
+            GL11.glPolygonOffset(factor, units);
+            if (!offset) GL11.glDisable(GL11.GL_POLYGON_OFFSET_FILL);
+            if (angelica && !batching) CemBedShaders.settle();
+            CemGeometry.restoreTexture(GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D), texture);
         }
     }
 }

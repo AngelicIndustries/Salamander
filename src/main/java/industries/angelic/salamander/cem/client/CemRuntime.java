@@ -660,7 +660,7 @@ public final class CemRuntime {
      * Draws a native model part again with its texture's emissive mask, full bright, as ETF does for every entity. The
      * parts a pack model draws carry their own masks.
      */
-    public static void emissivePart(int displayList) {
+    public static void emissivePart(ModelRenderer part, int displayList, float scale) {
         if (rendering || texture == null
             || !CemConfig.enabled
             || !CemConfig.emissiveTextures
@@ -672,7 +672,7 @@ public final class CemRuntime {
             maskSubject = object;
             mask = CemResources.INSTANCE.emissive(texture) != null;
         }
-        if (mask) CemEmissive.render(texture, () -> org.lwjgl.opengl.GL11.glCallList(displayList));
+        if (mask) CemEmissive.render(texture, () -> CemGeometry.drawList(part, displayList, scale));
     }
 
     private static ResourceLocation maskTexture;

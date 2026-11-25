@@ -29,6 +29,7 @@ salamander.config.cem.emissivetextures=Emissive textures
 salamander.config.cem.compiledanimations=Compiled animations
 salamander.config.cem.exportmodels=Export mod models
 salamander.config.cem.batchedgeometry=Batched geometry
+salamander.config.cem.angelicabatching=Angelica batching
 salamander.config.cem.serveranimationsignals=Server animation signals
 
 salamander.config.textures=Textures

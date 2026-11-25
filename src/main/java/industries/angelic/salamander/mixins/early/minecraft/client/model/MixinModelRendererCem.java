@@ -57,7 +57,7 @@ public abstract class MixinModelRendererCem implements CemPartCalls {
             shift = At.Shift.AFTER,
             remap = false))
     private void salamander$emissive(float scale, CallbackInfo ci) {
-        CemRuntime.emissivePart(displayList);
+        CemRuntime.emissivePart((ModelRenderer) (Object) this, displayList, scale);
     }
 
     @Inject(method = "postRender", at = @At("HEAD"), cancellable = true)

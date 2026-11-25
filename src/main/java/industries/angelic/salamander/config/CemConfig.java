@@ -33,6 +33,10 @@ public final class CemConfig {
     @Config.DefaultBoolean(true)
     public static boolean batchedGeometry = true;
 
+    @Config.Comment("With Angelica's entity batching on, hand pack model parts to Angelica's batcher, as vanilla parts are, instead of drawing them at once. Angelica then keeps batching the renderers that draw pack models. Turned on in game, it reaches renderers Angelica already stopped batching after a restart.")
+    @Config.DefaultBoolean(true)
+    public static boolean angelicaBatching = true;
+
     @Config.Comment("Write a .jem model of each other mod's entity model when it is first drawn, with its part names, pivots, boxes and texture coordinates, to salamander/cem-export/<modid>/. A starting point for resource packs; see the log for each file written.")
     @Config.DefaultBoolean(false)
     public static boolean exportModels = false;
