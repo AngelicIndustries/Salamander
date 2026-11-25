@@ -238,8 +238,55 @@ public final class CemResources implements IResourceManagerReloadListener {
                     }
                 }
             }
+            if (source.getResourcePath()
+                .matches("textures/entity/zombie_villager/[^/]+\\.png")) {
+                ResourceLocation arms = zombieVillagerArms(source);
+                if (arms != null) return arms;
+            }
             return source;
         });
+    }
+
+    /**
+     * Et Futurum's zombie villager textures keep the arms 16 pixels below where modern models read them. A pack model
+     * reads the modern place: when it is empty and the old one is not, the arms move up. Everything right of the robe
+     * from the old arms down is then left empty, as modern textures have it, since pack models sample it for parts
+     * they keep invisible (Fresh Animations' head turns on such a plane).
+     */
+    private ResourceLocation zombieVillagerArms(ResourceLocation legacy) {
+        if (!exists(legacy)) return null;
+        try (java.io.InputStream stream = manager.getResource(legacy)
+            .getInputStream()) {
+            java.awt.image.BufferedImage image = javax.imageio.ImageIO.read(stream);
+            if (image == null || image.getWidth() != image.getHeight() || image.getWidth() % 64 != 0) return null;
+            int unit = image.getWidth() / 64, x = 44 * unit, modern = 22 * unit, old = 38 * unit, size = 16 * unit;
+            if (!transparent(image, x, modern, size, size) || transparent(image, x, old, size, size)) return null;
+            java.awt.image.BufferedImage result = new java.awt.image.BufferedImage(
+                image.getWidth(),
+                image.getHeight(),
+                java.awt.image.BufferedImage.TYPE_INT_ARGB);
+            java.awt.Graphics2D g = result.createGraphics();
+            g.drawImage(image, 0, 0, null);
+            g.drawImage(image, x, modern, x + size, modern + size, x, old, x + size, old + size, null);
+            g.setComposite(java.awt.AlphaComposite.Clear);
+            g.fillRect(28 * unit, old, image.getWidth() - 28 * unit, image.getHeight() - old);
+            g.dispose();
+            ResourceLocation texture = net.minecraft.client.Minecraft.getMinecraft()
+                .getTextureManager()
+                .getDynamicTextureLocation(
+                    "salamander_zombie_villager",
+                    new net.minecraft.client.renderer.texture.DynamicTexture(result));
+            generatedTextures.add(texture);
+            return texture;
+        } catch (IOException exception) {
+            return null;
+        }
+    }
+
+    private static boolean transparent(java.awt.image.BufferedImage image, int x, int y, int width, int height) {
+        for (int row = y; row < y + height; row++) for (int column = x; column < x + width; column++)
+            if ((image.getRGB(column, row) >>> 24) != 0) return false;
+        return true;
     }
 
     private ResourceLocation villagerTexture(ResourceLocation legacy, ResourceLocation modern) {

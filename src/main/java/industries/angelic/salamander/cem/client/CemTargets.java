@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
+import net.minecraft.client.entity.AbstractClientPlayer;
 import net.minecraft.client.model.ModelBase;
 import net.minecraft.client.model.ModelBook;
 import net.minecraft.client.model.ModelHorse;
@@ -177,7 +178,7 @@ public final class CemTargets {
         if (model instanceof ModelHorse && tex.contains("armor")) layer = "_armor";
         List<String> names = new ArrayList<>();
         if (subject instanceof EntityLivingBase && ((EntityLivingBase) subject).isChild())
-            names.add(target + "_baby" + layer);
+            names.add(target + (target.equals("armor_stand") ? "_small" : "_baby") + layer);
         if (target.equals("boat") || target.equals("chest_boat")) {
             String wood = tex.substring(tex.lastIndexOf('/') + 1)
                 .replace(".png", "");
@@ -200,6 +201,35 @@ public final class CemTargets {
         if (target.equals("enchanting_screen_book")) names.add("enchanting_book");
         if (target.startsWith("enchanting_")) names.add("book");
         if (target.equals("zombified_piglin")) names.add("zombie_pigman");
+        return names;
+    }
+
+    /**
+     * EMF's names for a renderer's own armor model (see {@link CemArmor}), most specific first: for a baby zombie's
+     * leggings {@code zombie_baby_inner_armor}, {@code zombie_inner_armor}, {@code baby_inner_armor} and
+     * {@code inner_armor}. Empty for any other model.
+     */
+    public static List<String> armorCandidates(Object subject, ModelBase model) {
+        String layer = CemArmor.layer(model);
+        if (layer == null) return Collections.emptyList();
+        String suffix = "_" + layer + "_armor";
+        String target = subject instanceof AbstractClientPlayer
+            ? CemPlayers.slim((AbstractClientPlayer) subject) ? "player_slim" : "player"
+            : target(subject);
+        boolean child = subject instanceof EntityLivingBase && ((EntityLivingBase) subject).isChild();
+        List<String> names = new ArrayList<>();
+        if (target != null) {
+            if (child) names.add(target + (target.equals("armor_stand") ? "_small" : "_baby") + suffix);
+            names.add(target + suffix);
+            if (target.equals("player_slim")) names.add("player" + suffix);
+            // Modern zombified piglins wear the piglins' wider armor, which a piglin armor model is made to match.
+            if (target.equals("zombified_piglin")) {
+                if (child) names.add("piglin_baby" + suffix);
+                names.add("piglin" + suffix);
+            }
+        }
+        if (child && !"armor_stand".equals(target)) names.add("baby" + suffix);
+        names.add(layer + "_armor");
         return names;
     }
 

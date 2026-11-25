@@ -28,6 +28,16 @@ public final class CemLoader {
         Reader open(ResourceLocation location) throws IOException;
     }
 
+    /** The attachment points renderers here place items and blocks at: OptiFine's hands and EMF's additions. */
+    private static final java.util.Set<String> ATTACHMENTS = new java.util.HashSet<>(
+        java.util.Arrays.asList(
+            "left_handheld_item",
+            "right_handheld_item",
+            "head_item",
+            "enderman_block",
+            "witch_item",
+            "fox_item"));
+
     private final Resources resources;
     private int resolutionDepth;
     private final List<CemModel.Node> nodes = new ArrayList<>();
@@ -152,10 +162,7 @@ public final class CemLoader {
         if (object.has("attachments"))
             for (Map.Entry<String, JsonElement> attachment : object.getAsJsonObject("attachments")
                 .entrySet()) {
-                    if (!attachment.getKey()
-                        .equals("left_handheld_item")
-                        && !attachment.getKey()
-                            .equals("right_handheld_item")) {
+                    if (!ATTACHMENTS.contains(attachment.getKey())) {
                         warnings.add("attachment '" + attachment.getKey() + "' is not supported; ignored");
                         continue;
                     }

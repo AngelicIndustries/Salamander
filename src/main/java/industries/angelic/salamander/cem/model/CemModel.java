@@ -299,6 +299,14 @@ public final class CemModel {
             for (int i = 0; i < 9; i++) if (force || !animated[toOffset + i]) pose[toOffset + i] = pose[fromOffset + i];
         }
 
+        /**
+         * Takes a bone's pose from another model's, as armor takes its wearer's, where this model does not animate it.
+         */
+        public void followPose(Node node, double[] source, int sourceOffset) {
+            int offset = node.index * STRIDE;
+            for (int i = 0; i < 9; i++) if (!animated[offset + i]) pose[offset + i] = source[sourceOffset + i];
+        }
+
         public boolean evaluated(long frame) {
             return lastFrame == frame;
         }

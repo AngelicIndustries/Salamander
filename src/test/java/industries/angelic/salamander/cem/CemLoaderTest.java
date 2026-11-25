@@ -133,7 +133,7 @@ public class CemLoaderTest {
         files.put(
             SOURCE,
             "{\"models\":[{\"part\":\"jacket\",\"boxes\":[{\"textureOffset\":[0,0],\"coordinates\":[0,0,0,1,1,1]}]},"
-                + "{\"part\":\"head\",\"id\":\"head\",\"attachments\":{\"fox_item\":[0,1,0]},"
+                + "{\"part\":\"head\",\"id\":\"head\",\"attachments\":{\"parrot_left\":[0,1,0]},"
                 + "\"animations\":[{\"missing.rx\":\"1\",\"head.ry\":\"body2.rx + 0.5\",\"head.rz\":\"unknownfunction(1, 2)\","
                 + "\"head.tx\":\"2\"}]}]}");
         CemModel model = loader(files).load(SOURCE, Collections.singletonMap("head", new float[] { 0, 15, -3 }));

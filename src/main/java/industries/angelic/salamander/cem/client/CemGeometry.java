@@ -26,6 +26,8 @@ public final class CemGeometry {
     private Map<String, List<Slice>> slices;
     /** Whether any box is a skin overlay piece. Those models keep per-part GL draws, as skin layers need them. */
     private final boolean overlaid;
+    /** The names of the model's attachment points. */
+    private final java.util.Set<String> attachments = new java.util.HashSet<>();
 
     public CemGeometry(CemModel model) {
         this.model = model;
@@ -46,6 +48,7 @@ public final class CemGeometry {
             for (CemModel.Box sprite : node.sprites) part.addAll(new CemSpriteMesh(sprite).faces);
             faces.add(part);
             overlays.add(pieces);
+            attachments.addAll(node.attachments.keySet());
         }
         boolean any = false;
         for (List<OverlayBox> pieces : overlays) any |= !pieces.isEmpty();
@@ -88,6 +91,7 @@ public final class CemGeometry {
     private void renderTextured(CemModel.Node node, double[] pose, Map<String, ModelRenderer> vanilla, float scale,
         net.minecraft.util.ResourceLocation texture, boolean rotationOrder) {
         net.minecraft.util.ResourceLocation selected = model.texture == null || CemEmissive.eyes(texture)
+            || glint(texture)
             || texture != null && texture.equals(CemResources.INSTANCE.emissive(model.texture)) ? texture
                 : model.texture;
         boolean eyes = CemEmissive.eyes(texture) || CemResources.INSTANCE.isEmissive(texture);
@@ -95,7 +99,7 @@ public final class CemGeometry {
             net.minecraft.util.ResourceLocation mask = CemResources.INSTANCE.emissive(model.texture);
             if (mask != null) selected = mask;
         }
-        selected = CemResources.INSTANCE.texture(CemRandomTextures.resolve(selected));
+        if (!glint(texture)) selected = CemResources.INSTANCE.texture(CemRandomTextures.resolve(selected));
         net.minecraft.util.ResourceLocation previousResource = CemRuntime.texture();
         int previous = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
         boolean normalized = GL11.glIsEnabled(GL11.GL_NORMALIZE);
@@ -171,6 +175,10 @@ public final class CemGeometry {
         GL11.glScaled(pose[offset + 6], pose[offset + 7], pose[offset + 8]);
     }
 
+    public boolean hasAttachment(String key) {
+        return attachments.contains(key);
+    }
+
     public boolean attachment(String key, double[] pose, float scale) {
         java.util.List<CemModel.Node> chain = new java.util.ArrayList<>();
         if (!findAttachment(model.root, key, chain)) return false;
@@ -202,7 +210,7 @@ public final class CemGeometry {
             ModelRenderer nativePart = vanilla.get(node.vanillaPart);
             if (nativePart != null) GL11.glTranslatef(nativePart.offsetX, nativePart.offsetY, nativePart.offsetZ);
             transform(node, pose, scale, rotationOrder);
-            net.minecraft.util.ResourceLocation selected = node.texture == null ? inherited
+            net.minecraft.util.ResourceLocation selected = node.texture == null || glint(inherited) ? inherited
                 : eyes ? CemResources.INSTANCE.emissive(node.texture) : node.texture;
             if (selected != null) net.minecraft.client.Minecraft.getMinecraft()
                 .getTextureManager()
@@ -234,7 +242,7 @@ public final class CemGeometry {
             ModelRenderer nativePart = vanilla.get(node.vanillaPart);
             if (nativePart != null) CemPartBatch.translate(nativePart.offsetX, nativePart.offsetY, nativePart.offsetZ);
             CemPartBatch.transform(node, pose, scale, rotationOrder);
-            net.minecraft.util.ResourceLocation selected = node.texture == null ? inherited
+            net.minecraft.util.ResourceLocation selected = node.texture == null || glint(inherited) ? inherited
                 : eyes ? CemResources.INSTANCE.emissive(node.texture) : node.texture;
             CemPartBatch.texture(selected);
             if (pose[offset + 10] != 0 && (!eyes || selected != null)) {
@@ -264,6 +272,14 @@ public final class CemGeometry {
         ModelRenderer original = node.vanillaGeometry ? vanilla.get(node.vanillaPart) : null;
         if (original != null) CemPartBatch.inGl(() -> drawNative(node, original, vanilla, scale, texture));
         CemPartBatch.add(faces.get(node.index), scale);
+    }
+
+    private static final net.minecraft.util.ResourceLocation GLINT = new net.minecraft.util.ResourceLocation(
+        "textures/misc/enchanted_item_glint.png");
+
+    /** An enchanted armor's glint pass draws the armor's geometry again with the glint for every part. */
+    private static boolean glint(net.minecraft.util.ResourceLocation texture) {
+        return GLINT.equals(texture);
     }
 
     private static boolean dragonMirror(CemModel.Node node, Map<String, ModelRenderer> vanilla) {

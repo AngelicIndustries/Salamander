@@ -26,6 +26,7 @@ public class LateMixinLoader implements ILateMixinLoader {
         if (cpw.mods.fml.relauncher.FMLLaunchHandler.side()
             .isClient() && industries.angelic.salamander.config.CemConfig.hooks && loadedMods.contains("etfuturum")) {
             mixins.add("etfuturum.MixinModelFoxCem");
+            mixins.add("etfuturum.MixinFoxRendererCem");
             mixins.add("etfuturum.MixinModelElytraCem");
             mixins.add("etfuturum.MixinBrownMooshroomRendererCem");
             mixins.add("etfuturum.MixinEntityFoxCemInputs");

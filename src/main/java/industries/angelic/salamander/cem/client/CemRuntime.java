@@ -173,8 +173,10 @@ public final class CemRuntime {
             return previous;
         Object object = entity != null ? entity : subject == null ? model : subject.object;
         CemBinding binding = binding(model, object);
+        List<String> armor = candidates == null ? CemTargets.armorCandidates(object, model) : Collections.emptyList();
         CemResources.Selection selected = CemResources.INSTANCE.select(
-            candidates == null ? CemTargets.candidates(binding, object, model, texture) : candidates,
+            candidates != null ? candidates
+                : !armor.isEmpty() ? armor : CemTargets.candidates(binding, object, model, texture),
             binding,
             object);
         CemResources.Entry entry = selected == null ? null : selected.entry;
@@ -193,7 +195,12 @@ public final class CemRuntime {
             if (selected != null) draw.inputs.put("rule_index", (double) selected.rule);
             if (subject != null) {
                 subject.draw(model, draw);
-                if (subject.primary == null && entry != null) {
+                Draw body = subject.primaryDraw;
+                if (!armor.isEmpty()) {
+                    // As EMF's armor, the armor takes the bones' poses of the wearer's pack model.
+                    if (body != null && body.binding.nativeModel instanceof net.minecraft.client.model.ModelBiped)
+                        draw.wearer = body;
+                } else if (subject.primary == null && entry != null) {
                     subject.primary = entry;
                     subject.primaryDraw = draw;
                 }
@@ -432,23 +439,39 @@ public final class CemRuntime {
         }
     }
 
+    /**
+     * An armor part on a wearer that a pack model draws: the pack's armor model when it has one, else the native armor
+     * boxes, on the wearer's bone.
+     */
     private static boolean armorPart(ModelBase model, ModelRenderer part, float scale, boolean rotationOrder) {
         if (!(model instanceof net.minecraft.client.model.ModelBiped) || subject == null
             || subject.primaryDraw == null
             || texture == null) return false;
         String path = texture.getResourcePath();
-        if (path.startsWith("textures/models/armor/")) subject.armor(model);
+        if (path.startsWith("textures/models/armor/") || CemArmor.layer(model) != null) subject.armor(model);
         else if (!path.equals("textures/misc/enchanted_item_glint.png") || !subject.hasArmor(model)) return false;
         Draw body = subject.primaryDraw;
         if (!(body.binding.nativeModel instanceof net.minecraft.client.model.ModelBiped)
             || !(model instanceof CemModelParts)) return false;
-        CemBinding binding = BINDINGS
-            .computeIfAbsent(model, m -> new CemBinding(m, ((CemModelParts) m).salamander$cemParts()));
+        Draw armor = draw != null && draw.binding.nativeModel == model && draw.wearer == body ? draw : null;
+        CemBinding binding = armor != null ? armor.binding
+            : BINDINGS.computeIfAbsent(model, m -> new CemBinding(m, ((CemModelParts) m).salamander$cemParts()));
         String name = binding.names.get(part);
         CemModel.Node node = body.entry.model.originalParts.get(name);
         if (node == null) return false;
         if (!part.showModel || part.isHidden) return true;
         body.evaluate();
+        if (armor != null && armor.entry.model.originalParts.containsKey(name)) {
+            org.lwjgl.opengl.GL11.glPushMatrix();
+            try {
+                body.frame.insertRoot(body.entry.model.root, body.instance.pose, scale);
+                renderPart(armor, name, scale, rotationOrder);
+            } finally {
+                rendering = false;
+                org.lwjgl.opengl.GL11.glPopMatrix();
+            }
+            return true;
+        }
         String piece = CemArmorSlices.piece(name);
         List<CemGeometry.Slice> slices = piece == null || part.childModels != null && !part.childModels.isEmpty()
             ? Collections.emptyList()
@@ -530,6 +553,7 @@ public final class CemRuntime {
         if (node == null) return false;
         if (!selected.entry.model.reaches(node) || selected.instance.pose[9] == 0) return true;
         selected.binding.refresh(node, selected.instance, selected.object, selected.parts);
+        if (selected.wearer != null) selected.follow(node);
         rendering = true;
         selected.entry.geometry.renderNativePart(
             node,
@@ -560,6 +584,40 @@ public final class CemRuntime {
             -nativePart.rotationPointX * scale,
             -nativePart.rotationPointY * scale,
             -nativePart.rotationPointZ * scale);
+    }
+
+    /**
+     * Moves to the attachment point {@code key} of the pack model drawing the entity, where a renderer places an item
+     * or
+     * block it attaches. Whether there was one: the renderer's own placement for it is left out when there was.
+     */
+    public static boolean attach(String key, float scale) {
+        Draw current = subject == null ? null : subject.primaryDraw;
+        if (current == null || current.entry == null || !current.entry.geometry.hasAttachment(key)) return false;
+        try {
+            current.evaluate();
+            current.frame.insertRoot(current.entry.model.root, current.instance.pose, scale);
+            return current.entry.geometry.attachment(key, current.instance.pose, scale);
+        } catch (Exception exception) {
+            CemResources.INSTANCE.fail(current.entry.model, exception);
+            return false;
+        }
+    }
+
+    /**
+     * Moves to the pivot of bone {@code name} as the pack model poses it, where a renderer that places an item reads
+     * the native bone's pivot, as modern renderers read the animated one. Whether the pack model has that bone.
+     */
+    public static boolean pivot(String name, float scale) {
+        Draw current = subject == null ? null : subject.primaryDraw;
+        CemModel.Node node = current == null || current.entry == null ? null
+            : current.entry.model.originalParts.get(name);
+        if (node == null) return false;
+        current.evaluate();
+        int offset = node.index * CemModel.STRIDE;
+        double[] pose = current.instance.pose;
+        org.lwjgl.opengl.GL11.glTranslated(pose[offset] * scale, pose[offset + 1] * scale, pose[offset + 2] * scale);
+        return true;
     }
 
     public static boolean post(ModelBase model, ModelRenderer part, float scale) {
@@ -650,6 +708,8 @@ public final class CemRuntime {
         final boolean hand;
         final Map<String, Draw> layers = new HashMap<>();
         final CemRenderFrame frame;
+        /** For a draw of armor, the draw of its wearer's pack model, whose bones it takes its pose from. */
+        Draw wearer;
         /** Counts this draw's calls on each part (see {@link CemPartCalls}); a new stamp starts them over. */
         int callStamp = CemPartCalls.nextStamp();
         boolean evaluated, extras, collecting;
@@ -729,10 +789,30 @@ public final class CemRuntime {
                         if (node != null)
                             for (int i = 0; i < 6; i++) pose[node.index * CemModel.STRIDE + i] = captured.getValue()[i];
                     }
+                    if (wearer != null) {
+                        wearer.evaluate();
+                        for (String name : parts.keySet()) {
+                            CemModel.Node node = entry.model.originalParts.get(name);
+                            CemModel.Node bone = wearer.entry.model.originalParts.get(name);
+                            if (node != null && bone != null) System.arraycopy(
+                                wearer.instance.pose,
+                                bone.index * CemModel.STRIDE,
+                                pose,
+                                node.index * CemModel.STRIDE,
+                                9);
+                        }
+                    }
                 });
                 binding.playerLayers(instance, false);
                 evaluated = true;
             }
+        }
+
+        /** Puts back the wearer's pose on a bone that a native refresh reset, where this model does not animate it. */
+        void follow(CemModel.Node node) {
+            CemModel.Node bone = node.vanillaPart == null ? null
+                : wearer.entry.model.originalParts.get(node.vanillaPart);
+            if (bone != null) instance.followPose(node, wearer.instance.pose, bone.index * CemModel.STRIDE);
         }
 
         void finish(float scale) {

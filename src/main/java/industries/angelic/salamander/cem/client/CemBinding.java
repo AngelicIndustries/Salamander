@@ -177,7 +177,12 @@ public final class CemBinding {
     }
 
     private boolean visible(String name, ModelRenderer part, Object subject) {
-        if (!part.showModel || part.isHidden) return false;
+        if (!part.showModel) return false;
+        // Et Futurum hides the zombie hat its zombie villager inherits, for good. Packs keep the whole head in that
+        // slot (Fresh Animations does), and in modern zombie villagers it shows.
+        if (part.isHidden && !("headwear".equals(name) && nativeModel.getClass()
+            .getName()
+            .equals("ganymedes01.etfuturum.client.model.ModelVillagerZombie"))) return false;
         if (subject instanceof net.minecraft.entity.passive.EntityHorse) {
             net.minecraft.entity.passive.EntityHorse horse = (net.minecraft.entity.passive.EntityHorse) subject;
             if (name.endsWith("_chest")) return horse.isAdultHorse() && horse.isChested();

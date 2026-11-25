@@ -58,6 +58,17 @@ public final class CemPlayers {
         return profileSlim(player);
     }
 
+    /**
+     * Slim arms for a model other than the player's own, such as its armor: as its renderer's player model has them.
+     */
+    public static boolean slim(AbstractClientPlayer player) {
+        net.minecraft.client.renderer.entity.Render renderer = net.minecraft.client.renderer.entity.RenderManager.instance
+            .getEntityRenderObject(player);
+        return renderer instanceof net.minecraft.client.renderer.entity.RenderPlayer
+            ? slim(player, ((net.minecraft.client.renderer.entity.RenderPlayer) renderer).modelBipedMain)
+            : profileSlim(player);
+    }
+
     /** Slim arms as SkinManager or the player's profile property report them. */
     public static boolean profileSlim(AbstractClientPlayer player) {
         Boolean resolved = SKIN_MODELS.get(player);
