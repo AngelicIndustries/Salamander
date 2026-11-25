@@ -122,6 +122,14 @@ public final class CemRuntime {
         return target != null && CemResources.INSTANCE.hasTargets(Arrays.asList(target + "_left", target + "_right"));
     }
 
+    /** Whether a texture has an emissive mask to draw, which Angelica's cached block entity meshes would leave out. */
+    public static boolean glows(ResourceLocation texture) {
+        return texture != null && CemConfig.enabled
+            && CemConfig.emissiveTextures
+            && CemResources.INSTANCE.hasEmissive()
+            && CemResources.INSTANCE.emissive(texture) != null;
+    }
+
     public static void clear() {
         BINDINGS.clear();
         CAPES.clear();
