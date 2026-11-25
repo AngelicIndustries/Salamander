@@ -20,7 +20,8 @@ public abstract class MixinRendererLivingEntityCem {
 
     /**
      * Other mods' living entities, named {@code <modid>:<entity_name>}, have no model hooks of Salamander's own: their
-     * main model draws as a pack model here, and is offered to the exporter.
+     * main model draws as a pack model here. Every living entity's main model, vanilla ones too, is offered to the
+     * exporter.
      */
     @WrapOperation(
         method = "renderModel(Lnet/minecraft/entity/EntityLivingBase;FFFFFF)V",
@@ -29,11 +30,11 @@ public abstract class MixinRendererLivingEntityCem {
             target = "Lnet/minecraft/client/model/ModelBase;render(Lnet/minecraft/entity/Entity;FFFFFF)V"))
     private void salamander$moddedModel(ModelBase model, Entity entity, float limb, float speed, float age, float yaw,
         float pitch, float scale, Operation<Void> original) {
+        if (CemConfig.exportModels) CemExporter.offer(entity, model);
         if (CemTargets.builtIn(entity) || CemTargets.target(entity) == null) {
             original.call(model, entity, limb, speed, age, yaw, pitch, scale);
             return;
         }
-        if (CemConfig.exportModels) CemExporter.offer(entity, model);
         CemRuntime.Draw previous = CemRuntime.begin(model, entity, limb, speed, age, yaw, pitch);
         try {
             original.call(model, entity, limb, speed, age, yaw, pitch, scale);

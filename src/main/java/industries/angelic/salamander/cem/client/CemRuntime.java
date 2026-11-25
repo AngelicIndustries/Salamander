@@ -395,6 +395,14 @@ public final class CemRuntime {
             if (cached == null && subject.object instanceof net.minecraft.tileentity.TileEntity) {
                 begin(model, null, 0, 0, 0, 0, 0);
                 cached = draw;
+            } else if (cached == null && CemModded.unhooked(subject.object)) {
+                // Another mod's projectile or vehicle: no model call to hook, so its first part starts the draw.
+                Entity entity = (Entity) subject.object;
+                if (CemConfig.exportModels) CemExporter.offer(entity, model);
+                if (CemResources.INSTANCE.hasTargets(Collections.singletonList(CemTargets.target(entity)))) {
+                    begin(model, entity, 0, 0, entity.ticksExisted + subject.partialTicks, 0, 0);
+                    cached = draw;
+                }
             } else draw = cached;
             if (cached == null) return false;
             try {

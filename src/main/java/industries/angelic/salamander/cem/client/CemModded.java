@@ -38,28 +38,64 @@ public final class CemModded {
     }
 
     /** {@code <modid>:<entity_name>} for an entity a mod registered with Forge, else null. */
+    /** Another mod's entity that no model hook of Salamander's sees: not living, so no renderer's model call. */
+    static boolean unhooked(Object subject) {
+        return subject instanceof Entity && !(subject instanceof net.minecraft.entity.EntityLivingBase)
+            && !CemTargets.builtIn(subject)
+            && CemTargets.target(subject) != null;
+    }
+
     static String target(Object subject) {
         if (!(subject instanceof Entity)) return null;
         Class<?> type = subject.getClass();
-        if (!TARGETS.containsKey(type)) TARGETS.put(type, lookup(type));
+        if (!TARGETS.containsKey(type)) TARGETS.put(type, lookup((Entity) subject));
         return TARGETS.get(type);
     }
 
-    @SuppressWarnings("unchecked")
-    private static String lookup(Class<?> type) {
+    private static String lookup(Entity subject) {
         try {
             cpw.mods.fml.common.registry.EntityRegistry.EntityRegistration registration = cpw.mods.fml.common.registry.EntityRegistry
                 .instance()
-                .lookupModSpawn((Class<? extends Entity>) type, false);
-            if (registration == null) return null;
-            String mod = name(
+                .lookupModSpawn(subject.getClass(), false);
+            if (registration == null) return global(subject);
+            return target(
                 registration.getContainer()
-                    .getModId());
-            String entity = name(registration.getEntityName());
-            return mod.isEmpty() || entity.isEmpty() ? null : mod + ":" + entity;
+                    .getModId(),
+                registration.getEntityName());
         } catch (RuntimeException | LinkageError exception) {
             return null;
         }
+    }
+
+    /**
+     * An entity a mod registered under a global id, as older mods do: its entity list name, under the mod whose
+     * packages hold its class, or the prefix of a {@code modid.Name} name.
+     */
+    private static String global(Entity subject) {
+        String name = net.minecraft.entity.EntityList.getEntityString(subject);
+        Class<?> type = subject.getClass();
+        if (name == null || type.getName()
+            .startsWith("net.minecraft.")) return null;
+        String owner = null;
+        Package source = type.getPackage();
+        if (source != null) for (cpw.mods.fml.common.ModContainer mod : cpw.mods.fml.common.Loader.instance()
+            .getModList())
+            if (mod.getOwnedPackages()
+                .contains(source.getName())) {
+                    owner = mod.getModId();
+                    break;
+                }
+        int dot = name.indexOf('.');
+        if (owner == null && dot > 0) owner = name.substring(0, dot);
+        if (owner == null) return null;
+        if (name.toLowerCase(Locale.ROOT)
+            .startsWith(owner.toLowerCase(Locale.ROOT) + ".")) name = name.substring(owner.length() + 1);
+        return target(owner, name);
+    }
+
+    private static String target(String modId, String entityName) {
+        String mod = name(modId), entity = name(entityName);
+        return mod.isEmpty() || entity.isEmpty() ? null : mod + ":" + entity;
     }
 
     /**
