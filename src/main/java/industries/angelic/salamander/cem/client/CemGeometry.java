@@ -37,8 +37,7 @@ public final class CemGeometry {
     public CemGeometry(CemModel model) {
         this.model = model;
         modded = !model.source.getResourceDomain()
-            .equals("minecraft")
-            || model.source.getResourcePath()
+            .equals("minecraft") || model.source.getResourcePath()
                 .contains("/cem/modded/");
         Map<CemModel.Box, CemOverlays.Overlay> matches = CemOverlays.matchAll(model);
         for (CemModel.Node node : model.nodes) {
@@ -118,13 +117,13 @@ public final class CemGeometry {
             if (industries.angelic.salamander.config.CemConfig.batchedGeometry && !overlaid && !CemPartBatch.active()) {
                 CemPartBatch.begin();
                 try {
-                    CemPartBatch.texture(selected);
+                    if (!glint(selected)) CemPartBatch.texture(selected);
                     renderBatched(node, pose, vanilla, scale, rotationOrder, selected, eyes);
                 } finally {
                     CemPartBatch.end();
                 }
             } else {
-                if (selected != null) net.minecraft.client.Minecraft.getMinecraft()
+                if (selected != null && !glint(selected)) net.minecraft.client.Minecraft.getMinecraft()
                     .getTextureManager()
                     .bindTexture(selected);
                 renderPart(node, pose, vanilla, scale, rotationOrder, selected, eyes, model.texture == null && !eyes);
@@ -222,7 +221,7 @@ public final class CemGeometry {
             transform(node, pose, scale, rotationOrder);
             net.minecraft.util.ResourceLocation selected = node.texture == null || glint(inherited) ? inherited
                 : eyes ? CemResources.INSTANCE.emissive(node.texture) : node.texture;
-            if (selected != null) net.minecraft.client.Minecraft.getMinecraft()
+            if (selected != null && !glint(selected)) net.minecraft.client.Minecraft.getMinecraft()
                 .getTextureManager()
                 .bindTexture(selected);
             boolean ownSkin = skin && node.texture == null;
@@ -254,7 +253,7 @@ public final class CemGeometry {
             CemPartBatch.transform(node, pose, scale, rotationOrder);
             net.minecraft.util.ResourceLocation selected = node.texture == null || glint(inherited) ? inherited
                 : eyes ? CemResources.INSTANCE.emissive(node.texture) : node.texture;
-            CemPartBatch.texture(selected);
+            if (!glint(selected)) CemPartBatch.texture(selected);
             if (pose[offset + 10] != 0 && (!eyes || selected != null)) {
                 if (!eyes && node.vanillaGeometry
                     && CemBoatChest.part(node.vanillaPart)
@@ -287,7 +286,11 @@ public final class CemGeometry {
     private static final net.minecraft.util.ResourceLocation GLINT = new net.minecraft.util.ResourceLocation(
         "textures/misc/enchanted_item_glint.png");
 
-    /** An enchanted armor's glint pass draws the armor's geometry again with the glint for every part. */
+    /**
+     * An enchanted armor's glint pass draws the armor's geometry again with the glint for every part. Its caller
+     * bound the glint already, and nothing binds it again: under shaders Angelica swaps in a copy tinted with the
+     * glint's color and draws it white, so the plain glint bound over it would glare.
+     */
     private static boolean glint(net.minecraft.util.ResourceLocation texture) {
         return GLINT.equals(texture);
     }
