@@ -263,6 +263,13 @@ public abstract class CemSyntax {
                     CemFunctions.Easing easing = CemFunctions.easing(name);
                     if (easing != null) return c -> easing
                         .ease((float) args[0].evaluate(c), (float) args[1].evaluate(c), (float) args[2].evaluate(c));
+                    CemExtensions.Function added = CemExpressionParser.arity(name) < 0 ? CemExtensions.function(name)
+                        : null;
+                    if (added != null) return c -> {
+                        double[] values = new double[count];
+                        for (int i = 0; i < count; i++) values[i] = args[i].evaluate(c);
+                        return added.call(values);
+                    };
                     return fixed(args);
             }
         }

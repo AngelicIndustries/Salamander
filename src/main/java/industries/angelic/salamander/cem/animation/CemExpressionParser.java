@@ -167,10 +167,40 @@ public final class CemExpressionParser {
                 return new CemSyntax.Call(name, args);
             default:
                 int required = arity(name);
-                if (required < 0) throw error("Unsupported function '" + name + "'");
+                if (required < 0) {
+                    CemExtensions.Function added = CemExtensions.function(name);
+                    if (added == null) throw error("Unsupported function '" + name + "'");
+                    required = added.arity;
+                }
                 if (count != required) throw error("'" + name + "' requires " + required + " arguments");
                 return new CemSyntax.Call(name, args);
         }
+    }
+
+    private static final java.util.Set<String> SPECIAL = new java.util.HashSet<>(
+        java.util.Arrays.asList(
+            "if",
+            "ifb",
+            "min",
+            "max",
+            "random",
+            "randomb",
+            "keyframe",
+            "keyframeloop",
+            "in",
+            "print",
+            "printb",
+            "nbt",
+            "catch",
+            "pi",
+            "e",
+            "nan",
+            "true",
+            "false"));
+
+    /** Whether expressions already know this name as a function or constant. */
+    public static boolean builtIn(String name) {
+        return SPECIAL.contains(name) || arity(name) >= 0;
     }
 
     /** Arguments of the fixed-arity functions, or -1 for an unknown name. */

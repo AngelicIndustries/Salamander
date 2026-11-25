@@ -413,7 +413,12 @@ public final class CemBytecode implements Opcodes {
                     function(node.name, "(DDDDD)D");
                     return;
                 default:
-                    throw new IllegalStateException("No bytecode for CEM function " + node.name);
+                    CemExtensions.Function added = CemExpressionParser.arity(node.name) < 0
+                        ? CemExtensions.function(node.name)
+                        : null;
+                    if (added == null) throw new IllegalStateException("No bytecode for CEM function " + node.name);
+                    invoke(INVOKESTATIC, added.owner, added.method.getName(), added.descriptor);
+                    return;
             }
         }
 

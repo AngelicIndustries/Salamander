@@ -158,6 +158,7 @@ public final class CemClient {
                 }
                 values.put("id", (double) (tile.xCoord * 73428767 ^ tile.yCoord * 912931 ^ tile.zCoord * 438289));
             } else if (!CemItemContext.hand() && !CemRuntime.itemFrame()) values.put("is_in_gui", 1d);
+            addedInputs(values, subject);
             return values;
         }
         values.put(
@@ -223,7 +224,28 @@ public final class CemClient {
         values.put("day_time", (entity.worldObj.getWorldTime() % 24000) + (double) partialTicks);
         values.put("day_count", (double) (entity.worldObj.getWorldTime() / 24000));
         if (subject instanceof CemEntityInputs) ((CemEntityInputs) subject).salamander$cemInputs(values, partialTicks);
+        addedInputs(values, subject);
         return values;
+    }
+
+    private static final java.util.Set<String> FAILED_INPUTS = new java.util.HashSet<>();
+
+    /** Variables other mods registered, read for this subject. One that fails reads 0, and is logged once. */
+    private static void addedInputs(Map<String, Double> values, Object subject) {
+        for (Map.Entry<String, java.util.function.ToDoubleFunction<Object>> variable : industries.angelic.salamander.cem.animation.CemExtensions
+            .variables()
+            .entrySet()) {
+            double value;
+            try {
+                value = variable.getValue()
+                    .applyAsDouble(subject);
+            } catch (RuntimeException exception) {
+                if (FAILED_INPUTS.add(variable.getKey())) industries.angelic.salamander.Salamander.LOG
+                    .warn("CEM variable '{}' failed: {}", variable.getKey(), exception.toString());
+                value = 0;
+            }
+            values.put(variable.getKey(), value);
+        }
     }
 
     /** Answers each loaded animation's nbt() calls for the subject, from its NBT as newer versions write it. */

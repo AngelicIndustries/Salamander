@@ -70,38 +70,54 @@ public final class CemResources implements IResourceManagerReloadListener {
 
     private static boolean hasModels(IResourcePack pack) {
         if (pack instanceof DefaultResourcePack) return false;
-        Set<String> domains = pack.getResourceDomains();
-        if (domains != null && !domains.contains("minecraft")) return false;
-        if (!(pack instanceof AbstractResourcePack)) return servesModelFolders(pack);
+        // A mod's own jar answers for its CEM folders: listing every mod's jar on each reload would be slow.
+        if (pack instanceof cpw.mods.fml.client.FMLFileResourcePack
+            || pack instanceof cpw.mods.fml.client.FMLFolderResourcePack
+            || !(pack instanceof AbstractResourcePack)) return servesModelFolders(pack);
         File root = ((AccessorAbstractResourcePack) pack).salamander$getResourcePackFile();
         if (root == null) return true;
-        if (root.isDirectory()) return hasEntries(new File(root, "assets/minecraft/optifine/cem"))
-            || hasEntries(new File(root, "assets/minecraft/emf/cem"));
+        if (root.isDirectory()) {
+            File[] domains = new File(root, "assets").listFiles(File::isDirectory);
+            if (domains != null) for (File domain : domains)
+                if (hasEntries(new File(domain, "optifine/cem")) || hasEntries(new File(domain, "emf/cem")))
+                    return true;
+            return false;
+        }
         try (ZipFile zip = new ZipFile(root)) {
             java.util.Enumeration<? extends ZipEntry> entries = zip.entries();
-            while (entries.hasMoreElements()) {
-                String name = entries.nextElement()
-                    .getName();
-                if (name.startsWith("assets/minecraft/optifine/cem/") || name.startsWith("assets/minecraft/emf/cem/"))
-                    return true;
-            }
+            while (entries.hasMoreElements()) if (MODEL_ENTRY.matcher(
+                entries.nextElement()
+                    .getName())
+                .lookingAt()) return true;
             return false;
         } catch (IOException exception) {
             return true;
         }
     }
 
+    /** A pack entry under any namespace's CEM folders, modded models included. */
+    private static final java.util.regex.Pattern MODEL_ENTRY = java.util.regex.Pattern
+        .compile("assets/[^/]+/(optifine|emf)/cem/.");
+
     /**
      * A pack that is no file or folder can't be listed, such as Et Futurum's generated sound and texture packs: it
      * counts when it answers for a CEM folder, as a pack backed by a folder does.
      */
     private static boolean servesModelFolders(IResourcePack pack) {
+        Set<String> domains;
         try {
-            return pack.resourceExists(new ResourceLocation("minecraft", "optifine/cem"))
-                || pack.resourceExists(new ResourceLocation("minecraft", "emf/cem"));
+            domains = pack.getResourceDomains();
         } catch (RuntimeException exception) {
-            return false;
+            domains = null;
         }
+        if (domains == null) domains = Collections.singleton("minecraft");
+        for (String domain : domains) try {
+            if (pack.resourceExists(new ResourceLocation(domain, "optifine/cem"))
+                || pack.resourceExists(new ResourceLocation(domain, "emf/cem"))) return true;
+        } catch (RuntimeException exception) {
+            // A pack that fails to answer counts as serving none.
+        }
+        return false;
     }
 
     private static boolean hasEntries(File directory) {

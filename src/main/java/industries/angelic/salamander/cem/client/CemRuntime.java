@@ -169,9 +169,9 @@ public final class CemRuntime {
         Draw previous = draw;
         if (previous != null && previous.binding.nativeModel == model) return previous;
         draw = null;
-        if (!CemConfig.enabled || !CemResources.INSTANCE.hasModels() || !(model instanceof CemModelParts))
-            return previous;
+        if (!CemConfig.enabled || !CemResources.INSTANCE.hasModels()) return previous;
         Object object = entity != null ? entity : subject == null ? model : subject.object;
+        if (!CemModded.bindable(model, object)) return previous;
         CemBinding binding = binding(model, object);
         List<String> armor = candidates == null ? CemTargets.armorCandidates(object, model) : Collections.emptyList();
         CemResources.Selection selected = CemResources.INSTANCE.select(
@@ -212,7 +212,7 @@ public final class CemRuntime {
     private static CemBinding binding(ModelBase model, Object object) {
         CemBinding binding = BINDINGS.get(model);
         if (binding == null || CemPlayers.model(object, model)) {
-            Map<String, ModelRenderer> parts = ((CemModelParts) model).salamander$cemParts();
+            Map<String, ModelRenderer> parts = CemModded.parts(model, object);
             if (binding == null || !binding.matches(parts)) {
                 binding = new CemBinding(model, parts);
                 BINDINGS.put(model, binding);

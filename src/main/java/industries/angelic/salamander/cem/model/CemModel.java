@@ -254,7 +254,8 @@ public final class CemModel {
             if (node != null && property >= 0)
                 return new Access(CemSlot.POSE, node.index * STRIDE + property, property >= 9);
         }
-        if (!writable && INPUTS.contains(name)) {
+        if (!writable
+            && (INPUTS.contains(name) || industries.angelic.salamander.cem.animation.CemExtensions.isVariable(name))) {
             Integer slot = inputSlots.get(name);
             if (slot == null) {
                 slot = inputNames.size();

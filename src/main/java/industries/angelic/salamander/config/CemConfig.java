@@ -33,6 +33,10 @@ public final class CemConfig {
     @Config.DefaultBoolean(true)
     public static boolean batchedGeometry = true;
 
+    @Config.Comment("Write a .jem model of each other mod's entity model when it is first drawn, with its part names, pivots, boxes and texture coordinates, to salamander/cem-export/<modid>/. A starting point for resource packs; see the log for each file written.")
+    @Config.DefaultBoolean(false)
+    public static boolean exportModels = false;
+
     @Config.Comment("Optionally synchronize mob aggression and melee attacks to clients supporting Salamander CEM. Does not change gameplay.")
     @Config.DefaultBoolean(true)
     public static boolean serverAnimationSignals = true;

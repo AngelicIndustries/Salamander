@@ -30,6 +30,8 @@ import net.minecraft.util.ResourceLocation;
 public final class CemTargets {
 
     private static final Map<String, Function<Object, String>> TARGETS = new LinkedHashMap<>();
+    /** The entity classes Salamander knows itself, each drawn through its own model hooks. */
+    private static final java.util.Set<String> BUILT_IN = new java.util.HashSet<>();
     static {
         String[] mobs = { "Bat:bat", "Blaze:blaze", "CaveSpider:cave_spider", "Chicken:chicken", "Cow:cow",
             "Creeper:creeper", "Enderman:enderman", "Ghast:ghast", "IronGolem:iron_golem", "MagmaCube:magma_cube",
@@ -88,6 +90,7 @@ public final class CemTargets {
             String[] p = pair.split(":");
             register("ganymedes01.etfuturum.entities.Entity" + p[0], p[1]);
         }
+        BUILT_IN.addAll(TARGETS.keySet());
     }
 
     private static final Map<String, List<String>> SADDLES = new java.util.HashMap<>();
@@ -108,12 +111,20 @@ public final class CemTargets {
         TARGETS.put(className, target);
     }
 
+    /** The model name for a subject: a registered one, else {@code <modid>:<entity_name>} for a mod's entity. */
     public static String target(Object subject) {
         Function<Object, String> f = subject == null ? null
             : TARGETS.get(
                 subject.getClass()
                     .getName());
-        return f == null ? null : f.apply(subject);
+        return f != null ? f.apply(subject) : CemModded.target(subject);
+    }
+
+    /** Whether Salamander draws this subject's model through hooks of its own, rather than as another mod's. */
+    public static boolean builtIn(Object subject) {
+        return subject != null && BUILT_IN.contains(
+            subject.getClass()
+                .getName());
     }
 
     public static List<String> candidates(Object subject, ModelBase model, ResourceLocation texture) {
