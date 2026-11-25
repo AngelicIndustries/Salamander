@@ -2,7 +2,9 @@ package industries.angelic.salamander.api.cem;
 
 import java.lang.reflect.Method;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.ToDoubleFunction;
 import java.util.regex.Pattern;
 
@@ -14,6 +16,7 @@ import cpw.mods.fml.relauncher.SideOnly;
 import industries.angelic.salamander.Salamander;
 import industries.angelic.salamander.cem.animation.CemExpressionParser;
 import industries.angelic.salamander.cem.animation.CemExtensions;
+import industries.angelic.salamander.cem.client.CemAnimationControl;
 import industries.angelic.salamander.cem.client.CemModded;
 import industries.angelic.salamander.cem.client.CemRuntime;
 import industries.angelic.salamander.cem.client.CemTargets;
@@ -73,6 +76,97 @@ public final class CemApi {
             throw new IllegalArgumentException(name + " is already a CEM name");
         CemExtensions.function(name, method);
         Salamander.LOG.info("CEM function '{}' registered by {}", name, modId);
+    }
+
+    /**
+     * Runs around every pack model animation, as EMF's animation hooks: any hook can cancel a run, and every hook still
+     * hears of it. A cancelled run leaves the model in its vanilla pose for that frame.
+     */
+    public abstract static class AnimationHook {
+
+        /**
+         * @param subject     the entity or block entity being animated
+         * @param model       the pack model, as {@code minecraft:optifine/cem/zombie.jem}
+         * @param pausedParts the parts whose animations were asked to pause for this subject
+         * @return false to cancel this run
+         */
+        public boolean onAnimationStart(Object subject, String model, Set<String> pausedParts, boolean cancelled) {
+            return true;
+        }
+
+        public void onAnimationEnd(Object subject, String model, Set<String> pausedParts, boolean cancelled) {}
+
+        /**
+         * Before an armor model takes its wearer's bone poses, as EMF copies a biped's pose.
+         *
+         * @return false to keep the armor model's own pose
+         */
+        public boolean onPoseCopy(Object subject, String model, boolean cancelled) {
+            return true;
+        }
+    }
+
+    public static void registerAnimationHook(AnimationHook hook) {
+        if (hook == null) throw new IllegalArgumentException("null animation hook");
+        CemAnimationControl.hook(new CemAnimationControl.Hook() {
+
+            @Override
+            public boolean start(Object subject, String model, Set<String> pausedParts, boolean cancelled) {
+                return hook.onAnimationStart(subject, model, pausedParts, cancelled);
+            }
+
+            @Override
+            public void end(Object subject, String model, Set<String> pausedParts, boolean cancelled) {
+                hook.onAnimationEnd(subject, model, pausedParts, cancelled);
+            }
+
+            @Override
+            public boolean poseCopy(Object subject, String model, boolean cancelled) {
+                return hook.onPoseCopy(subject, model, cancelled);
+            }
+        });
+    }
+
+    /** Pauses the animations of every entity or block entity this holds for, which keep their vanilla pose. */
+    public static void registerPauseCondition(Predicate<Object> shouldPause) {
+        if (shouldPause == null) throw new IllegalArgumentException("null pause condition");
+        CemAnimationControl.pauseCondition(shouldPause);
+    }
+
+    /**
+     * Pauses a pack model's animations for this entity or block entity: its parts keep their vanilla pose.
+     *
+     * @return false for anything else
+     */
+    public static boolean pauseAnimations(Object entityOrTileEntity) {
+        return CemAnimationControl.pause(entityOrTileEntity, true);
+    }
+
+    /**
+     * Pauses only these parts' animations, by their pack model names ({@code head}, {@code left_arm}); the rest
+     * animate. Replaces parts paused before.
+     */
+    public static boolean pauseAnimations(Object entityOrTileEntity, String... parts) {
+        return CemAnimationControl.pauseParts(entityOrTileEntity, parts);
+    }
+
+    /** Resumes what {@link #pauseAnimations} paused, whole or part by part. */
+    public static boolean resumeAnimations(Object entityOrTileEntity) {
+        return CemAnimationControl.pause(entityOrTileEntity, false);
+    }
+
+    /** Draws every entity or block entity this holds for with its vanilla model, whatever the packs hold. */
+    public static void registerVanillaModelCondition(Predicate<Object> useVanillaModel) {
+        if (useVanillaModel == null) throw new IllegalArgumentException("null vanilla model condition");
+        CemAnimationControl.vanillaCondition(useVanillaModel);
+    }
+
+    public static boolean lockToVanillaModel(Object entityOrTileEntity) {
+        return CemAnimationControl.lockVanilla(entityOrTileEntity, true);
+    }
+
+    public static boolean unlockFromVanillaModel(Object entityOrTileEntity) {
+        return CemAnimationControl.lockVanilla(entityOrTileEntity, false);
     }
 
     /** The entity or block entity whose model is being drawn now, or null. */

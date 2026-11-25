@@ -137,7 +137,7 @@ public final class CemResources implements IResourceManagerReloadListener {
     }
 
     public Selection select(java.util.List<String> candidates, CemBinding binding, Object subject) {
-        if (!CemConfig.enabled || manager == null) return null;
+        if (!CemConfig.enabled || manager == null || CemAnimationControl.vanilla(subject)) return null;
         for (String name : candidates) {
             ResourceLocation resource = modelPath(name);
             if (resource == null) continue;

@@ -328,10 +328,20 @@ public final class CemModel {
 
         /** Reuses the evaluated pose across eye, hurt, and shader passes in the same client frame. */
         public void evaluate(long frame, Map<String, Double> inputs, Consumer<double[]> vanillaPose) {
+            evaluate(frame, inputs, vanillaPose, false, java.util.Collections.emptySet());
+        }
+
+        /**
+         * {@code paused}: the animations do not run, and every part keeps its vanilla pose. {@code pausedParts}, by
+         * part name or id: those parts keep theirs while the rest animate.
+         */
+        public void evaluate(long frame, Map<String, Double> inputs, Consumer<double[]> vanillaPose, boolean paused,
+            java.util.Set<String> pausedParts) {
             if (lastFrame == frame) return;
             java.util.Arrays.fill(hidden, false);
             System.arraycopy(defaults, 0, pose, 0, defaults.length);
             vanillaPose.accept(pose);
+            double[] unanimated = pausedParts.isEmpty() ? null : pose.clone();
             for (int i = 0; i < inputValues.length; i++) {
                 Double value = inputs.get(inputNames.get(i));
                 inputValues[i] = value == null ? 0 : value;
@@ -352,12 +362,19 @@ public final class CemModel {
                 renderProperties,
                 inputValues,
                 renderValues);
-            if (compiled != null) compiled.run(context);
-            else for (Assignment assignment : program) {
-                double value = assignment.expression.evaluate(context);
-                assignment.target.set(context, value);
+            // Paused, nothing runs: the parts keep the vanilla pose and the render properties their defaults.
+            if (!paused) {
+                if (compiled != null) compiled.run(context);
+                else for (Assignment assignment : program) {
+                    double value = assignment.expression.evaluate(context);
+                    assignment.target.set(context, value);
+                }
             }
             for (int i = 0; i < renderValues.length; i++) renderProperties.put(RENDER_NAMES.get(i), renderValues[i]);
+            if (unanimated != null) for (String name : pausedParts) {
+                Node node = find(name, null, null);
+                if (node != null) System.arraycopy(unanimated, node.index * STRIDE, pose, node.index * STRIDE, STRIDE);
+            }
             // Some standard packs intentionally divide by zero to hide a part. Never pass infinity/NaN to GL.
             for (Node node : nodes) {
                 int offset = node.index * STRIDE;

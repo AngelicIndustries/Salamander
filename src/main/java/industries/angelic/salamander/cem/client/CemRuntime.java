@@ -116,6 +116,7 @@ public final class CemRuntime {
     public static boolean claims(ModelBase model) {
         if (!CemConfig.enabled || !CemResources.INSTANCE.hasModels() || !(model instanceof CemModelParts)) return false;
         Object object = subject();
+        if (CemAnimationControl.vanilla(object)) return false;
         if (CemResources.INSTANCE.hasTargets(CemTargets.candidates(object, model, texture))) return true;
         String target = model instanceof ModelLargeChest ? CemTargets.target(object) : null;
         return target != null && CemResources.INSTANCE.hasTargets(Arrays.asList(target + "_left", target + "_right"));
@@ -189,7 +190,7 @@ public final class CemRuntime {
         draw = null;
         if (!CemConfig.enabled || !CemResources.INSTANCE.hasModels()) return previous;
         Object object = entity != null ? entity : subject == null ? model : subject.object;
-        if (!CemModded.bindable(model, object)) return previous;
+        if (!CemModded.bindable(model, object) || CemAnimationControl.vanilla(object)) return previous;
         CemBinding binding = binding(model, object);
         List<String> armor = candidates == null ? CemTargets.armorCandidates(object, model) : Collections.emptyList();
         CemResources.Selection selected = CemResources.INSTANCE.select(
@@ -824,14 +825,22 @@ public final class CemRuntime {
 
         void evaluate() {
             if (entry != null && !evaluated) {
-                instance.evaluate(CemClient.frame(), inputs, pose -> {
+                long frame = CemClient.frame();
+                boolean paused = !instance.evaluated(frame) && CemAnimationControl.paused(object);
+                java.util.Set<String> pausedParts = paused ? Collections.emptySet()
+                    : CemAnimationControl.pausedParts(object);
+                boolean hooked = !paused && !instance.evaluated(frame) && CemAnimationControl.hooked();
+                String model = hooked ? entry.model.source.toString() : null;
+                if (hooked) paused = CemAnimationControl.start(object, model, pausedParts);
+                instance.evaluate(frame, inputs, pose -> {
                     binding.pose(entry.model, pose, object, parts);
                     for (Map.Entry<String, float[]> captured : collected.entrySet()) {
                         CemModel.Node node = entry.model.originalParts.get(captured.getKey());
                         if (node != null)
                             for (int i = 0; i < 6; i++) pose[node.index * CemModel.STRIDE + i] = captured.getValue()[i];
                     }
-                    if (wearer != null) {
+                    if (wearer != null && (!CemAnimationControl.hooked()
+                        || CemAnimationControl.poseCopy(object, entry.model.source.toString()))) {
                         wearer.evaluate();
                         for (String name : parts.keySet()) {
                             CemModel.Node node = entry.model.originalParts.get(name);
@@ -844,7 +853,8 @@ public final class CemRuntime {
                                 9);
                         }
                     }
-                });
+                }, paused, pausedParts);
+                if (hooked) CemAnimationControl.end(object, model, pausedParts, paused);
                 binding.playerLayers(instance, false);
                 evaluated = true;
             }
