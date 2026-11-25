@@ -18,6 +18,8 @@ public abstract class MixinModelRendererCem implements CemPartCalls {
 
     @Shadow
     private ModelBase baseModel;
+    @Shadow
+    private int displayList;
 
     @Unique
     private int salamander$callStamp;
@@ -41,6 +43,21 @@ public abstract class MixinModelRendererCem implements CemPartCalls {
     @Inject(method = "renderWithRotation", at = @At("HEAD"), cancellable = true)
     private void salamander$rotated(float scale, CallbackInfo ci) {
         if (CemRuntime.part(baseModel, (ModelRenderer) (Object) this, scale, true)) ci.cancel();
+    }
+
+    /**
+     * After the part's display list draws, whoever drew it: Angelica redirects that call to batch parts, and this
+     * applies first, so it stays after the redirect.
+     */
+    @Inject(
+        method = { "render", "renderWithRotation" },
+        at = @At(
+            value = "INVOKE",
+            target = "Lorg/lwjgl/opengl/GL11;glCallList(I)V",
+            shift = At.Shift.AFTER,
+            remap = false))
+    private void salamander$emissive(float scale, CallbackInfo ci) {
+        CemRuntime.emissivePart(displayList);
     }
 
     @Inject(method = "postRender", at = @At("HEAD"), cancellable = true)

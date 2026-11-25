@@ -125,6 +125,8 @@ public final class CemRuntime {
         BINDINGS.clear();
         CAPES.clear();
         LAST.clear();
+        maskTexture = null;
+        maskSubject = null;
         for (Subject pooled : subjects) if (pooled != null) pooled.release();
         subject = null;
         draw = null;
@@ -636,6 +638,29 @@ public final class CemRuntime {
         org.lwjgl.opengl.GL11.glTranslated(pose[offset] * scale, pose[offset + 1] * scale, pose[offset + 2] * scale);
         return true;
     }
+
+    /**
+     * Draws a native model part again with its texture's emissive mask, full bright, as ETF does for every entity. The
+     * parts a pack model draws carry their own masks.
+     */
+    public static void emissivePart(int displayList) {
+        if (rendering || texture == null
+            || !CemConfig.enabled
+            || !CemConfig.emissiveTextures
+            || !CemResources.INSTANCE.hasEmissive()) return;
+        // Every part of an entity asks for the same texture and subject: one lookup answers them all.
+        Object object = subject == null ? null : subject.object;
+        if (texture != maskTexture || object != maskSubject) {
+            maskTexture = texture;
+            maskSubject = object;
+            mask = CemResources.INSTANCE.emissive(texture) != null;
+        }
+        if (mask) CemEmissive.render(texture, () -> org.lwjgl.opengl.GL11.glCallList(displayList));
+    }
+
+    private static ResourceLocation maskTexture;
+    private static Object maskSubject;
+    private static boolean mask;
 
     public static boolean post(ModelBase model, ModelRenderer part, float scale) {
         if (!CemResources.INSTANCE.hasModels()) return false;

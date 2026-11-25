@@ -43,10 +43,12 @@ final class CemEmissive {
             Minecraft.getMinecraft()
                 .getTextureManager()
                 .bindTexture(mask);
+            if (angelica) CemBedShaders.settle();
             geometry.run();
         } finally {
             if (angelica) CemBedShaders.endEyes(condition);
             state.restore();
+            if (angelica) CemBedShaders.settle();
             CemRuntime.texture(texture);
         }
     }

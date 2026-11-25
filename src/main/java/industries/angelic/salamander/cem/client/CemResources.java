@@ -362,17 +362,34 @@ public final class CemResources implements IResourceManagerReloadListener {
                 .endsWith(suffix + ".png");
     }
 
+    /** Whether a pack names an emissive suffix: without one, no texture has a mask. */
+    public boolean hasEmissive() {
+        return suffix != null;
+    }
+
+    /**
+     * The emissive mask of the texture as drawn, its random variant included: callers pass what they draw, which a
+     * pack model may have renamed to a modern texture already, and native models never do.
+     */
+    private final Map<ResourceLocation, ResourceLocation> masks = new HashMap<>();
+    private static final ResourceLocation NO_MASK = new ResourceLocation("salamander", "no_mask");
+
     public ResourceLocation emissive(ResourceLocation texture) {
-        texture = texture(CemRandomTextures.resolve(texture));
-        if (suffix == null || texture == null
-            || !texture.getResourcePath()
-                .endsWith(".png"))
-            return null;
-        String path = texture.getResourcePath();
-        ResourceLocation result = new ResourceLocation(
-            texture.getResourceDomain(),
-            path.substring(0, path.length() - 4) + suffix + ".png");
-        return exists(result) ? result : null;
+        if (suffix == null || texture == null) return null;
+        texture = CemRandomTextures.resolve(texture);
+        if (texture == null) return null;
+        ResourceLocation mask = masks.get(texture);
+        if (mask == null) {
+            String path = texture.getResourcePath();
+            if (path.endsWith(".png")) {
+                ResourceLocation candidate = new ResourceLocation(
+                    texture.getResourceDomain(),
+                    path.substring(0, path.length() - 4) + suffix + ".png");
+                if (exists(candidate)) mask = candidate;
+            }
+            masks.put(texture, mask == null ? NO_MASK : mask);
+        }
+        return mask == NO_MASK ? null : mask;
     }
 
     public boolean exists(ResourceLocation resource) {
@@ -390,6 +407,7 @@ public final class CemResources implements IResourceManagerReloadListener {
             .getTextureManager()
             .deleteTexture(generated);
         generatedTextures.clear();
+        masks.clear();
         this.manager = manager;
         models = scanModels();
         suffix = emissiveSuffix(manager);
