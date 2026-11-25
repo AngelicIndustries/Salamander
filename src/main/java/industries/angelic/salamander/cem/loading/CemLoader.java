@@ -189,6 +189,12 @@ public final class CemLoader {
             float add = box.has("sizeAdd") ? box.get("sizeAdd")
                 .getAsFloat() : 0;
             float[] inflation = vector(box, "sizesAdd", 3, new float[] { add, add, add });
+            // EMF's sizeAddX, sizeAddY and sizeAddZ override sizeAdd for their axis.
+            for (int axis = 0; axis < 3; axis++) {
+                String key = "sizeAdd" + "XYZ".charAt(axis);
+                if (box.has(key)) inflation[axis] = box.get(key)
+                    .getAsFloat();
+            }
             float[] uv = vector(box, "textureOffset", 2, new float[2]);
             float[][] faceUvs = null;
             if (!box.has("textureOffset")) {

@@ -28,9 +28,18 @@ public final class CemGeometry {
     private final boolean overlaid;
     /** The names of the model's attachment points. */
     private final java.util.Set<String> attachments = new java.util.HashSet<>();
+    /**
+     * Whether the model is another mod's entity model, made for the texture the mod binds: legacy textures aren't
+     * swapped for the modern ones a pack ships for vanilla models, whose layout differs.
+     */
+    private final boolean modded;
 
     public CemGeometry(CemModel model) {
         this.model = model;
+        modded = !model.source.getResourceDomain()
+            .equals("minecraft")
+            || model.source.getResourcePath()
+                .contains("/cem/modded/");
         Map<CemModel.Box, CemOverlays.Overlay> matches = CemOverlays.matchAll(model);
         for (CemModel.Node node : model.nodes) {
             List<float[]> part = new ArrayList<>();
@@ -99,7 +108,8 @@ public final class CemGeometry {
             net.minecraft.util.ResourceLocation mask = CemResources.INSTANCE.emissive(model.texture);
             if (mask != null) selected = mask;
         }
-        if (!glint(texture)) selected = CemResources.INSTANCE.texture(CemRandomTextures.resolve(selected));
+        if (!glint(texture)) selected = modded ? CemRandomTextures.resolve(selected)
+            : CemResources.INSTANCE.texture(CemRandomTextures.resolve(selected));
         net.minecraft.util.ResourceLocation previousResource = CemRuntime.texture();
         int previous = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
         boolean normalized = GL11.glIsEnabled(GL11.GL_NORMALIZE);

@@ -21,12 +21,19 @@ public abstract class MixinRenderLivingCemLeash {
     private int salamander$vertex;
     @Unique
     private double[] salamander$offset = new double[3];
+    /** EMF's holder offset: where the holding entity's pack model puts its end of the leash, in world axes. */
+    @Unique
+    private double[] salamander$holder = new double[3];
 
     @WrapMethod(method = "func_110827_b")
     private void salamander$leash(EntityLiving entity, double x, double y, double z, float yaw, float partial,
         Operation<Void> original) {
         int previous = salamander$vertex;
-        double[] previousOffset = salamander$offset;
+        double[] previousOffset = salamander$offset, previousHolder = salamander$holder;
+        net.minecraft.entity.Entity holder = entity.getLeashedToEntity();
+        salamander$holder = new double[] { CemRuntime.propertyOf(holder, "render.leash_holder_offset_x", 0),
+            CemRuntime.propertyOf(holder, "render.leash_holder_offset_y", 0),
+            CemRuntime.propertyOf(holder, "render.leash_holder_offset_z", 0) };
         salamander$vertex = 0;
         double angle = Math
             .toRadians(entity.prevRenderYawOffset + (entity.renderYawOffset - entity.prevRenderYawOffset) * partial);
@@ -39,6 +46,7 @@ public abstract class MixinRenderLivingCemLeash {
         } finally {
             salamander$vertex = previous;
             salamander$offset = previousOffset;
+            salamander$holder = previousHolder;
         }
     }
 
@@ -46,11 +54,13 @@ public abstract class MixinRenderLivingCemLeash {
         method = "func_110827_b",
         at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/Tessellator;addVertex(DDD)V"))
     private void salamander$anchor(Tessellator tessellator, double x, double y, double z, Operation<Void> original) {
-        double t = (salamander$vertex++ % 50) / 2 / 24d;
+        double t = (salamander$vertex++ % 50) / 2 / 24d, sag = (t * t + t) * 0.5;
+        // Each end's offset moves the rope as vanilla's curve moves with that end: fully there, not at all at the
+        // other.
         original.call(
             tessellator,
-            x + salamander$offset[0] * (1 - t),
-            y + salamander$offset[1] * (1 - (t * t + t) * 0.5),
-            z + salamander$offset[2] * (1 - t));
+            x + salamander$offset[0] * (1 - t) + salamander$holder[0] * t,
+            y + salamander$offset[1] * (1 - sag) + salamander$holder[1] * sag,
+            z + salamander$offset[2] * (1 - t) + salamander$holder[2] * t);
     }
 }

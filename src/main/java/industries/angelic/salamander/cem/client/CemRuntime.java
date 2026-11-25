@@ -124,6 +124,7 @@ public final class CemRuntime {
     public static void clear() {
         BINDINGS.clear();
         CAPES.clear();
+        LAST.clear();
         for (Subject pooled : subjects) if (pooled != null) pooled.release();
         subject = null;
         draw = null;
@@ -147,6 +148,21 @@ public final class CemRuntime {
         Subject left = subject;
         if (left != null && left != previous) left.release();
         subject = previous;
+    }
+
+    /** Each entity's pack model as it last drew, for what another entity's renderer draws of it. */
+    private static final Map<Object, CemModel.Instance> LAST = new com.google.common.collect.MapMaker().weakKeys()
+        .makeMap();
+
+    /**
+     * A render property as the entity's own pack model last set it, where another entity's renderer draws part of it:
+     * the end of a leash the entity holds.
+     */
+    public static double propertyOf(Object entity, String name, double fallback) {
+        CemModel.Instance instance = entity == null || !CemConfig.enabled ? null : LAST.get(entity);
+        if (instance == null) return fallback;
+        double value = instance.renderProperties.getOrDefault(name, fallback);
+        return Double.isFinite(value) ? value : fallback;
     }
 
     public static double property(String name, double fallback) {
@@ -203,6 +219,7 @@ public final class CemRuntime {
                 } else if (subject.primary == null && entry != null) {
                     subject.primary = entry;
                     subject.primaryDraw = draw;
+                    if (object instanceof Entity) LAST.put(object, draw.instance);
                 }
             }
         }

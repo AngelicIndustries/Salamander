@@ -120,7 +120,15 @@ public final class CemModel {
                 "render.shadow_offset_z",
                 "render.leash_offset_x",
                 "render.leash_offset_y",
-                "render.leash_offset_z")));
+                "render.leash_offset_z",
+                "render.leash_holder_offset_x",
+                "render.leash_holder_offset_y",
+                "render.leash_holder_offset_z",
+                "render.fire_x",
+                "render.fire_y",
+                "render.fire_z",
+                "render.fire_scale",
+                "render.fire_height")));
     /** Render properties by slot. */
     private static final List<String> RENDER_NAMES = Collections
         .unmodifiableList(new ArrayList<>(new java.util.TreeSet<>(RENDER_PROPERTIES)));
@@ -331,9 +339,11 @@ public final class CemModel {
             for (int i = 0; i < renderValues.length; i++) {
                 String property = RENDER_NAMES.get(i);
                 Double value = inputs.get(property);
+                // EMF's fire properties are unset, NaN, until a pack sets them: the overlay keeps vanilla's values.
                 renderValues[i] = value != null ? value
                     : property.equals("render.shadow_size") ? shadowSize
-                        : property.equals("render.shadow_opacity") ? 1 : 0;
+                        : property.equals("render.shadow_opacity") ? 1
+                            : property.startsWith("render.fire_") ? Double.NaN : 0;
             }
             CemExpression.Context context = new CemExpression.Context(
                 pose,
