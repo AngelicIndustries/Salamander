@@ -45,6 +45,21 @@ public class CemPlayerSkinTest {
         }
     }
 
+    /** Texels of a 64x32 skin that no part shows, where Fresh Moves reads its eyes, keep their transparency. */
+    @Test
+    public void legacySkinsKeepTransparencyWhereNoPartShows() {
+        int[][] unused = { { 2, 2 }, { 28, 4 }, { 1, 17 }, { 14, 18 }, { 18, 17 }, { 38, 18 }, { 42, 17 }, { 54, 19 },
+            { 60, 25 } };
+        for (int unit : new int[] { 1, 2 }) {
+            BufferedImage original = skin(64 * unit, 32 * unit);
+            for (int[] texel : unused) original.setRGB(texel[0] * unit, texel[1] * unit, 0);
+            BufferedImage normalized = CemSkinImage.normalize(original);
+            for (int[] texel : unused) assertEquals(0, normalized.getRGB(texel[0] * unit, texel[1] * unit));
+            assertEquals(0xff, normalized.getRGB(10 * unit, 12 * unit) >>> 24);
+            assertEquals(0xff, normalized.getRGB(20 * unit, 25 * unit) >>> 24);
+        }
+    }
+
     @Test
     public void rawImageTransferKeepsPixelsLostByNativeProcessing() {
         BufferedImage raw = skin(64, 64);

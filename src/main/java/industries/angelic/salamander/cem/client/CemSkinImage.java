@@ -16,6 +16,10 @@ public final class CemSkinImage {
         return image;
     }
 
+    /** The texels of a 64x32 skin's head, right leg, body and right arm that the model shows: x1, y1, x2, y2. */
+    private static final int[][] SHOWN = { { 8, 0, 24, 8 }, { 0, 8, 32, 16 }, { 4, 16, 12, 20 }, { 0, 20, 16, 32 },
+        { 20, 16, 36, 20 }, { 16, 20, 40, 32 }, { 44, 16, 52, 20 }, { 40, 20, 56, 32 } };
+
     public static BufferedImage normalize(BufferedImage source) {
         BufferedImage image = copy(source);
         if (image == null || image.getHeight() == image.getWidth()) return image;
@@ -27,8 +31,10 @@ public final class CemSkinImage {
             for (int x = 32 * unit; x < width; x++) if ((pixels[y * width + x] >>> 24) < 128) transparentHat = true;
         if (!transparentHat) for (int y = 0; y < 32 * unit; y++)
             for (int x = 32 * unit; x < width; x++) pixels[y * width + x] &= 0xffffff;
-        for (int y = 0; y < 32 * unit; y++)
-            for (int x = 0; x < (y < 16 * unit ? 32 * unit : width); x++) pixels[y * width + x] |= 0xff000000;
+        // The parts vanilla's model shows are opaque, as vanilla makes them. Texels no part shows keep their alpha, as
+        // in 64x64 skins: packs read some, such as Fresh Moves' eyes, which would otherwise come out black.
+        for (int[] area : SHOWN) for (int y = area[1] * unit; y < area[3] * unit; y++)
+            for (int x = area[0] * unit; x < area[2] * unit; x++) pixels[y * width + x] |= 0xff000000;
         // Each mirrored limb swaps its side faces and reverses every face horizontally.
         int[][] faces = { { 4, 0, 4, 0, 4, 4 }, { 8, 0, 8, 0, 4, 4 }, { 0, 4, 8, 4, 4, 12 }, { 4, 4, 4, 4, 4, 12 },
             { 8, 4, 0, 4, 4, 12 }, { 12, 4, 12, 4, 4, 12 } };
