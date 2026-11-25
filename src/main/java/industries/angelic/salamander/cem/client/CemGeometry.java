@@ -407,16 +407,13 @@ public final class CemGeometry {
         return angelicaLoaded() && industries.angelic.salamander.config.CemConfig.angelicaBatching;
     }
 
-    /** Whether Angelica is there with the batching API. */
+    /** Whether Angelica is there with everything its batching needs (see {@link CemAngelicaBatch#available}). */
     private static boolean angelicaLoaded() {
         if (angelicaLoaded == null) {
             boolean loaded;
             try {
-                loaded = cpw.mods.fml.common.Loader.isModLoaded("angelica") && Class.forName(
-                    "com.gtnewhorizons.angelica.api.tesr.ModelPartBatch",
-                    false,
-                    CemGeometry.class.getClassLoader()) != null;
-            } catch (ClassNotFoundException | RuntimeException | LinkageError exception) {
+                loaded = cpw.mods.fml.common.Loader.isModLoaded("angelica") && CemAngelicaBatch.available();
+            } catch (RuntimeException | LinkageError exception) {
                 loaded = false;
             }
             angelicaLoaded = loaded;

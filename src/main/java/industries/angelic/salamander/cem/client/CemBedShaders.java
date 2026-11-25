@@ -13,8 +13,16 @@ final class CemBedShaders {
      * armor stand's armor, would draw with the program from before it.
      */
     static void settle() {
-        com.gtnewhorizons.angelica.glsm.hooks.GLSMHooks.resolvePendingProgram();
+        if (!settles) return;
+        try {
+            com.gtnewhorizons.angelica.glsm.hooks.GLSMHooks.resolvePendingProgram();
+        } catch (LinkageError error) {
+            // Before Angelica 2.2.15 nothing holds program changes, so there is nothing to settle.
+            settles = false;
+        }
     }
+
+    private static boolean settles = true;
 
     static void begin() {
         GbufferPrograms.beginBlockEntities();
