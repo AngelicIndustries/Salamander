@@ -31,7 +31,22 @@ public final class CemRuntime {
     private static ResourceLocation texture;
     private static boolean rendering;
 
+    /** Models another mod draws itself, whatever the packs hold for their entities: see {@link #exclude}. */
+    private static final Set<ModelBase> EXCLUDED = Collections.newSetFromMap(new java.util.WeakHashMap<>());
+
     private CemRuntime() {}
+
+    /**
+     * Keeps pack models off {@code model}: its parts draw as its own code draws them, as for a mod that draws the
+     * player itself and takes only a pack's face (see {@link CemFaces}).
+     */
+    public static void exclude(ModelBase model) {
+        if (model != null) EXCLUDED.add(model);
+    }
+
+    static boolean excluded(ModelBase model) {
+        return !EXCLUDED.isEmpty() && EXCLUDED.contains(model);
+    }
 
     public static void texture(ResourceLocation value) {
         texture = value;
@@ -196,7 +211,7 @@ public final class CemRuntime {
         Draw previous = draw;
         if (previous != null && previous.binding.nativeModel == model) return previous;
         draw = null;
-        if (!CemConfig.enabled || !CemResources.INSTANCE.hasModels()) return previous;
+        if (!CemConfig.enabled || !CemResources.INSTANCE.hasModels() || excluded(model)) return previous;
         Object object = entity != null ? entity : subject == null ? model : subject.object;
         if (!CemModded.bindable(model, object) || CemAnimationControl.vanilla(object)) return previous;
         CemBinding binding = binding(model, object);
@@ -235,6 +250,43 @@ public final class CemRuntime {
             }
         }
         return previous;
+    }
+
+    /** The resource pack whose model would draw {@code subject} with {@code model} and {@code texture}, or null. */
+    public static String packModelSource(Object subject, ModelBase model, ResourceLocation texture) {
+        if (!CemConfig.enabled || !CemResources.INSTANCE.hasModels()
+            || model == null
+            || !CemModded.bindable(model, subject)
+            || CemAnimationControl.vanilla(subject)) return null;
+        ResourceLocation previous = CemRuntime.texture;
+        try {
+            CemRuntime.texture = texture;
+            CemBinding binding = binding(model, subject);
+            CemResources.Selection selection = CemResources.INSTANCE
+                .select(CemTargets.candidates(binding, subject, model, texture), binding, subject);
+            return selection == null ? null : CemResources.packName(selection.entry.model.source);
+        } finally {
+            CemRuntime.texture = previous;
+        }
+    }
+
+    static CemBinding bindingFor(ModelBase model, Object object) {
+        return binding(model, object);
+    }
+
+    /** Draws the face {@code face} picked out of {@code selected}'s pack model, at the current GL matrix. */
+    static void renderFace(Draw selected, CemFaces.Face face, float scale) {
+        boolean previous = rendering;
+        try {
+            selected.evaluate();
+            rendering = true;
+            selected.entry.geometry
+                .renderFace(face.roots, face.skipped, selected.instance.pose, selected.parts, scale, selected.texture);
+        } catch (Exception exception) {
+            CemResources.INSTANCE.fail(selected.entry.model, exception);
+        } finally {
+            rendering = previous;
+        }
     }
 
     private static CemBinding binding(ModelBase model, Object object) {
@@ -277,7 +329,8 @@ public final class CemRuntime {
         net.minecraft.entity.player.EntityPlayer player, float scale, boolean sleeve) {
         if (!CemConfig.enabled || !CemResources.INSTANCE.hasModels()
             || !(model instanceof CemModelParts)
-            || !CemPlayers.model(player, model)) return false;
+            || !CemPlayers.model(player, model)
+            || excluded(model)) return false;
         float partial = ((industries.angelic.salamander.mixins.early.minecraft.client.AccessorMinecraft) net.minecraft.client.Minecraft
             .getMinecraft()).salamander$getTimer().renderPartialTicks;
         Subject previousSubject = enter(player, partial);

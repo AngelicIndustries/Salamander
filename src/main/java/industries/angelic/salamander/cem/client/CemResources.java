@@ -38,6 +38,18 @@ public final class CemResources implements IResourceManagerReloadListener {
         packs = new java.util.ArrayList<>(value);
     }
 
+    /** The name of the resource pack {@code location} comes from, the one on top when several have it; or null. */
+    public static String packName(ResourceLocation location) {
+        int index = priority(location);
+        if (index < 0) return null;
+        try {
+            return packs.get(index)
+                .getPackName();
+        } catch (RuntimeException exception) {
+            return null;
+        }
+    }
+
     static int priority(ResourceLocation texture) {
         for (int i = packs.size() - 1; i >= 0; i--) if (packs.get(i)
             .resourceExists(texture)) return i;

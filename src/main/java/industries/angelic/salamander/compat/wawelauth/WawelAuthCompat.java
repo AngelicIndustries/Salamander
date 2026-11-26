@@ -28,6 +28,19 @@ public final class WawelAuthCompat {
         return LOADED ? new WawelAuthSkins() : null;
     }
 
+    /**
+     * Adds the expression editor's face button to Wawel Auth's account manager, where it edits the selected account's
+     * skin. Older Wawel Auths have no such buttons.
+     */
+    public static void registerAccountButton() {
+        if (!LOADED) return;
+        try {
+            WawelAuthPreviewButton.register();
+        } catch (ReflectiveOperationException | LinkageError olderWawelAuth) {
+            // No account manager buttons in this Wawel Auth.
+        }
+    }
+
     /** The player's skin pixels when the texture is that player's loaded Wawel Auth skin; null otherwise. */
     public static SkinPixels skin(Object subject, ResourceLocation texture) {
         if (!LOADED || !(subject instanceof AbstractClientPlayer) || texture == null) return null;

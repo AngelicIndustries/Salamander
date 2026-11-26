@@ -59,6 +59,7 @@ public class ClientProxy extends CommonProxy {
         industries.angelic.salamander.skin.layers.LayerDraws.register();
         industries.angelic.salamander.compat.ears.EarsAnchors.register();
         industries.angelic.salamander.skin.translucent.TranslucentLayers.register();
+        industries.angelic.salamander.compat.wawelauth.WawelAuthCompat.registerAccountButton();
 
         if (DebugConfig.debugMode) DebugClientContent.register();
     }

@@ -88,6 +88,28 @@ public final class CemGeometry {
         }
     }
 
+    /** While {@link #renderFace} draws: the nodes whose own boxes it leaves out, the head's and hat's cubes. */
+    private java.util.Set<CemModel.Node> skipped;
+
+    /**
+     * Draws a face picked out of this model, its {@code roots} (nodes under the head) with their animated transforms,
+     * at the current GL matrix: another model's head bone takes the place of the pack head's transform. The nodes in
+     * {@code skipped} draw no boxes of their own, their children still do.
+     */
+    public void renderFace(List<CemModel.Node> roots, java.util.Set<CemModel.Node> skipped, double[] pose,
+        Map<String, ModelRenderer> vanilla, float scale, net.minecraft.util.ResourceLocation texture) {
+        this.skipped = skipped;
+        try {
+            for (CemModel.Node root : roots) renderTextured(root, pose, vanilla, scale, texture, false);
+        } finally {
+            this.skipped = null;
+        }
+    }
+
+    private boolean drawsOwn(CemModel.Node node) {
+        return skipped == null || !skipped.contains(node);
+    }
+
     public void renderRootExtras(double[] pose, Map<String, ModelRenderer> vanilla, float scale,
         net.minecraft.util.ResourceLocation texture, CemRenderFrame frame) {
         if (pose[model.root.index * CemModel.STRIDE + 9] == 0) return;
@@ -235,7 +257,7 @@ public final class CemGeometry {
                 .getTextureManager()
                 .bindTexture(selected);
             boolean ownSkin = skin && node.texture == null;
-            if (pose[offset + 10] != 0 && (!eyes || selected != null)) {
+            if (pose[offset + 10] != 0 && (!eyes || selected != null) && drawsOwn(node)) {
                 if (!eyes && node.vanillaGeometry
                     && CemBoatChest.part(node.vanillaPart)
                     && !vanilla.containsKey(node.vanillaPart)) live(() -> CemBoatChest.render(node.vanillaPart, scale));
@@ -263,7 +285,7 @@ public final class CemGeometry {
             net.minecraft.util.ResourceLocation selected = node.texture == null || glint(inherited) ? inherited
                 : eyes ? CemResources.INSTANCE.emissive(node.texture) : node.texture;
             if (!glint(selected)) CemPartBatch.texture(selected);
-            if (pose[offset + 10] != 0 && (!eyes || selected != null)) {
+            if (pose[offset + 10] != 0 && (!eyes || selected != null) && drawsOwn(node)) {
                 if (!eyes && node.vanillaGeometry
                     && CemBoatChest.part(node.vanillaPart)
                     && !vanilla.containsKey(node.vanillaPart))

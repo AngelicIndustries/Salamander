@@ -213,6 +213,11 @@ public final class CemModel {
         }
     }
 
+    /** Whether an animation of this model writes {@code property} (an index into {@link #PROPERTIES}) of the node. */
+    public boolean animates(Node node, int property) {
+        return animated[node.index * STRIDE + property];
+    }
+
     public int assignmentCount() {
         return program.size();
     }

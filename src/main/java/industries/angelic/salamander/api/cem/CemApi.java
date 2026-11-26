@@ -10,6 +10,8 @@ import java.util.regex.Pattern;
 
 import net.minecraft.client.model.ModelBase;
 import net.minecraft.client.model.ModelRenderer;
+import net.minecraft.entity.Entity;
+import net.minecraft.util.ResourceLocation;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
@@ -17,6 +19,7 @@ import industries.angelic.salamander.Salamander;
 import industries.angelic.salamander.cem.animation.CemExpressionParser;
 import industries.angelic.salamander.cem.animation.CemExtensions;
 import industries.angelic.salamander.cem.client.CemAnimationControl;
+import industries.angelic.salamander.cem.client.CemFaces;
 import industries.angelic.salamander.cem.client.CemModded;
 import industries.angelic.salamander.cem.client.CemRuntime;
 import industries.angelic.salamander.cem.client.CemTargets;
@@ -172,6 +175,61 @@ public final class CemApi {
     /** The entity or block entity whose model is being drawn now, or null. */
     public static Object currentSubject() {
         return CemRuntime.subject();
+    }
+
+    /** What a player's pack model covers, for a mod that draws the player itself. */
+    public enum PlayerPackCoverage {
+        /** No pack model draws the player. */
+        NONE,
+        /**
+         * The pack keeps the vanilla body and adds only to the head, animating only that, as Just Expressions does:
+         * {@link #drawPlayerPackFace} draws that face on another model's head.
+         */
+        FACE,
+        /** The pack changes or animates more than the head, as Fresh Moves does: it draws the whole player. */
+        BODY
+    }
+
+    /** What the pack model the player would draw with now covers; NONE for anything but a player. */
+    public static PlayerPackCoverage playerPackCoverage(Entity player) {
+        return PlayerPackCoverage.valueOf(
+            CemFaces.coverage(player)
+                .name());
+    }
+
+    /** The name of the resource pack the player's pack model comes from, or null when none draws the player. */
+    public static String playerPackSource(Entity player) {
+        return CemFaces.packName(player);
+    }
+
+    /**
+     * Draws the face of the player's pack model at the current GL matrix, which must be the caller's head bone: the
+     * vanilla head's frame, at its pivot and turned as the head. The pack's animations run for the player as usual;
+     * its head's own turn and the vanilla head and hat cubes are left to the caller. Pass what the caller's model got
+     * to draw (head yaw relative to the body, in degrees).
+     *
+     * @return whether a face was drawn: only for {@link PlayerPackCoverage#FACE}
+     */
+    public static boolean drawPlayerPackFace(Entity player, float limbSwing, float limbSpeed, float age, float headYaw,
+        float headPitch, float scale) {
+        return CemFaces.draw(player, limbSwing, limbSpeed, age, headYaw, headPitch, scale);
+    }
+
+    /**
+     * The name of the resource pack whose model would draw {@code subject} with {@code model} and {@code texture}, as
+     * Salamander picks it when that model draws; null when none would.
+     */
+    public static String packModelSource(Object subject, ModelBase model, ResourceLocation texture) {
+        return CemRuntime.packModelSource(subject, model, texture);
+    }
+
+    /**
+     * Keeps pack models off {@code model}, which then draws as its own code draws it whatever the packs hold for its
+     * entities: for a model a mod draws in place of the vanilla one, such as Even Mo' Bends' player, that still takes
+     * a pack's face through {@link #drawPlayerPackFace}.
+     */
+    public static void excludeModel(ModelBase model) {
+        CemRuntime.exclude(model);
     }
 
     private static void check(String modId, String name, Object value) {
