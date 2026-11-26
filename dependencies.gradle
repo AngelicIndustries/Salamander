@@ -35,7 +35,7 @@
  */
 dependencies {
     // Supply a local Wawel Auth development jar with -PwawelAuthJar, e.g. a build with an unpublished skin API.
-    def wawelAuthDependency = "industries.angelic.wawelauth:WawelAuth:85a6c43-snapshot:dev"
+    def wawelAuthDependency = "industries.angelic.wawelauth:WawelAuth:1.0.6:dev"
     if (project.hasProperty("wawelAuthJar")) {
         def wawelAuthJar = file(project.property("wawelAuthJar"))
         if (!wawelAuthJar.isFile()) {
