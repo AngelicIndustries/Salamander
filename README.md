@@ -44,6 +44,7 @@ Its expression editor prepares a skin's eyes and brows for Just Expressions and 
 ## Credits
 
 * The [GeckoLib](https://github.com/bernie-g/geckolib) contributors
+* [kotmatross28729](https://github.com/kotmatross28729) for the skin layer and overlay rendering work it took over from Wawel Auth
 * Skin layer implementation inspired by the [last MIT commit](https://github.com/tr7zw/3d-Skin-Layers/commit/1830e6ed7b86550afc2ed2695391a09ca70285e2) of [3D Skin Layers Mod](https://github.com/tr7zw/3d-Skin-Layers)
 * Citadel compatibility code is derived from [Citadel](https://github.com/AlexModGuy/Citadel) and is licensed under LGPLv3
 * [Entity Model Features](https://github.com/Traben-0/Entity_Model_Features) and [Entity Texture Features](https://github.com/Traben-0/Entity_Texture_Features), whose formats and behavior the CEM support follows
