@@ -54,7 +54,12 @@ public class LateMixinLoader implements ILateMixinLoader {
             .isClient()) {
             // Player skins on other mods' renderers.
             EarsTransformerAccess.open();
-            if (loadedMods.contains("etfuturum")) mixins.add("etfuturum.MixinTileEntityFancySkullRenderer");
+            if (loadedMods.contains("etfuturum")) {
+                mixins.add("etfuturum.MixinTileEntityFancySkullRenderer");
+                // The elytra on bodies other mods bend (BodyFrames).
+                mixins.add("etfuturum.MixinLayerBetterElytraBody");
+                mixins.add("etfuturum.MixinModelElytraBody");
+            }
             if (loadedMods.contains("aether_legacy")) {
                 mixins.add("aether.MixinAetherItemRenderer");
                 mixins.add("aether.MixinPlayerAetherRenderer");
