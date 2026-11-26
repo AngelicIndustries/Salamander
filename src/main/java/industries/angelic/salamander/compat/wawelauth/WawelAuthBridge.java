@@ -39,13 +39,24 @@ final class WawelAuthBridge {
      * can't say, and their button showed for every account.
      */
     static boolean skinUploadEnabled(WawelAuthUpload.Account account) {
+        if (SKIN_UPLOAD_ENABLED == null) return true;
         AccountInfo info = new AccountInfo(account.id, account.name, account.uuid, account.provider, account.offline);
         try {
-            Object enabled = WawelAccounts.class.getMethod("skinUploadEnabled", AccountInfo.class)
-                .invoke(null, info);
+            Object enabled = SKIN_UPLOAD_ENABLED.invoke(null, info);
             return !(enabled instanceof Boolean) || (Boolean) enabled;
-        } catch (ReflectiveOperationException olderOrFailed) {
+        } catch (ReflectiveOperationException failed) {
             return true;
+        }
+    }
+
+    /** Wawel Auth's answer, from 1.0.6: false until the provider has said whether it takes skins. Asked every tick. */
+    private static final java.lang.reflect.Method SKIN_UPLOAD_ENABLED = skinUploadEnabledMethod();
+
+    private static java.lang.reflect.Method skinUploadEnabledMethod() {
+        try {
+            return WawelAccounts.class.getMethod("skinUploadEnabled", AccountInfo.class);
+        } catch (NoSuchMethodException older) {
+            return null;
         }
     }
 

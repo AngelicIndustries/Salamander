@@ -1205,6 +1205,12 @@ public class ExpressionEditorScreen extends GuiScreen {
     @Override
     public void updateScreen() {
         this.hexField.updateCursorCounter();
+        // Wawel Auth may hear from the provider whether it takes skins only after the editor opened.
+        for (Object object : this.buttonList) {
+            GuiButton button = (GuiButton) object;
+            if (button.id == UPLOAD)
+                button.visible = uploadTarget() != null && WawelAuthUpload.skinUploadEnabled(uploadTarget());
+        }
     }
 
     // Drawing
